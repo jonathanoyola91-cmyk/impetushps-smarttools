@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Historial de cotizaciones</title>
+    <style>
+        body{
+            margin:0;
+            font-family:Arial, sans-serif;
+            background:#f4f7fb;
+            color:#1f2937;
+        }
+
+        .topnav{
+            background:#111827;
+            color:#fff;
+            padding:14px 22px;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:16px;
+            flex-wrap:wrap;
+            box-shadow:0 6px 16px rgba(0,0,0,.12);
+        }
+
+        .brand{
+            display:flex;
+            align-items:center;
+        }
+
+        .brand-link{
+            text-decoration:none;
+            color:#fff;
+            display:flex;
+            align-items:center;
+            gap:10px;
+        }
+
+        .brand-mark{
+            background:#fff;
+            color:#111827;
+            font-weight:bold;
+            font-size:12px;
+            padding:6px 10px;
+            border-radius:999px;
+            letter-spacing:.5px;
+        }
+
+        .brand-name{
+            font-size:18px;
+            font-weight:bold;
+            letter-spacing:.3px;
+        }
+
+        .nav-links{
+            display:flex;
+            gap:12px;
+            flex-wrap:wrap;
+        }
+
+        .nav-links a{
+            color:#fff;
+            text-decoration:none;
+            font-weight:bold;
+            padding:9px 13px;
+            border-radius:8px;
+            transition:.2s ease;
+        }
+
+        .nav-links a:hover{
+            background:rgba(255,255,255,.12);
+        }
+
+        .wrap{
+            max-width:1200px;
+            margin:0 auto;
+            padding:30px 20px 50px;
+        }
+
+        .topbar{
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:16px;
+            flex-wrap:wrap;
+            margin-bottom:24px;
+        }
+
+        h1{
+            margin:0;
+        }
+
+        .search-box{
+            background:#fff;
+            border:1px solid #e5e7eb;
+            border-radius:14px;
+            padding:18px;
+            box-shadow:0 10px 30px rgba(0,0,0,.06);
+            margin-bottom:24px;
+        }
+
+        input[type="text"]{
+            width:100%;
+            max-width:420px;
+            padding:12px 14px;
+            border:1px solid #d1d5db;
+            border-radius:10px;
+            font-size:14px;
+        }
+
+        button, .btn{
+            display:inline-block;
+            border:none;
+            border-radius:10px;
+            padding:10px 16px;
+            font-weight:bold;
+            cursor:pointer;
+            text-decoration:none;
+            background:#111827;
+            color:#fff;
+        }
+
+        .btn-light{
+            background:#e5e7eb;
+            color:#111827;
+        }
+
+        table{
+            width:100%;
+            border-collapse:collapse;
+            background:#fff;
+            border-radius:16px;
+            overflow:hidden;
+            box-shadow:0 10px 30px rgba(0,0,0,.06);
+        }
+
+        th, td{
+            padding:14px 12px;
+            border-bottom:1px solid #e5e7eb;
+            text-align:left;
+            vertical-align:top;
+            font-size:14px;
+        }
+
+        th{
+            background:#111827;
+            color:#fff;
+        }
+
+        tr:hover{
+            background:#f9fafb;
+        }
+
+        .actions{
+            display:flex;
+            gap:8px;
+            flex-wrap:wrap;
+        }
+
+        @media (max-width: 900px){
+            .topbar{
+                flex-direction:column;
+                align-items:flex-start;
+            }
+
+            table, thead, tbody, th, td, tr{
+                font-size:13px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="topnav">
+        <div class="brand">
+            <a href="{% url 'home' %}" class="brand-link">
+                <span class="brand-mark">IMPETUS</span>
+                <span class="brand-name">Smart Tools</span>
+            </a>
+        </div>
+
+        <div class="nav-links">
+            <a href="{% url 'home' %}">🏠 Home</a>
+            <a href="{% url 'cotizador' %}">⚙️ Cotizador Bombas</a>
+            <a href="{% url 'historial_cotizaciones' %}">📄 Historial</a>
+        </div>
+    </div>
+
+    <div class="wrap">
+        <div class="topbar">
+            <h1>Historial de cotizaciones</h1>
+            <a class="btn btn-light" href="{% url 'cotizador' %}">Volver al cotizador</a>
+        </div>
+
+        <div class="search-box">
+            <form method="get">
+                <input type="text" name="q" value="{{ q }}" placeholder="Buscar por empresa, contacto, correo o proyecto">
+                <button type="submit">Buscar</button>
+            </form>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Número</th>
+                    <th>Fecha</th>
+                    <th>Empresa</th>
+                    <th>Contacto</th>
+                    <th>Proyecto / Pozo</th>
+                    <th>Equipo</th>
+                    <th>Valor estimado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in solicitudes %}
+                <tr>
+                    <td>CP-{{ s.id|stringformat:"04d" }}</td>
+                    <td>{{ s.created_at|date:"Y-m-d H:i" }}</td>
+                    <td>{{ s.empresa }}</td>
+                    <td>{{ s.contacto }}</td>
+                    <td>{{ s.nombre_proyecto }}</td>
+                    <td>{{ s.equipo_recomendado }}</td>
+                    <td>$ {{ s.valor_estimado }}</td>
+                    <td>
+                        <div class="actions">
+                            <a class="btn btn-light" href="{% url 'descargar_pdf' s.id %}">PDF</a>
+                            <a class="btn" href="{% url 'enviar_cotizacion_email' s.id %}">Enviar</a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8">No hay cotizaciones registradas.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</body>
+</html>

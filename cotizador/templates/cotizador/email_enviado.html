@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Correo procesado</title>
+    <style>
+        body{
+            font-family: Arial, sans-serif;
+            background:#f6f8fb;
+            margin:0;
+            padding:40px 20px;
+            color:#1f2937;
+        }
+        .wrap{
+            max-width:800px;
+            margin:0 auto;
+        }
+        .card{
+            background:#fff;
+            border-radius:14px;
+            padding:32px;
+            box-shadow:0 10px 30px rgba(0,0,0,.08);
+            border:1px solid #e5e7eb;
+        }
+        .ok{
+            font-size:28px;
+            margin:0 0 10px;
+        }
+        .msg{
+            font-size:16px;
+            line-height:1.6;
+            margin-bottom:24px;
+        }
+        .alert{
+            background:#fff7ed;
+            color:#9a3412;
+            border:1px solid #fdba74;
+            padding:14px 16px;
+            border-radius:10px;
+            margin-bottom:24px;
+        }
+        .grid{
+            display:grid;
+            grid-template-columns: 180px 1fr;
+            gap:10px 16px;
+            margin:24px 0;
+        }
+        .label{
+            font-weight:bold;
+            color:#374151;
+        }
+        .actions{
+            display:flex;
+            gap:12px;
+            flex-wrap:wrap;
+            margin-top:28px;
+        }
+        .btn{
+            display:inline-block;
+            text-decoration:none;
+            padding:12px 18px;
+            border-radius:10px;
+            border:none;
+            font-weight:bold;
+            cursor:pointer;
+        }
+        .btn-primary{
+            background:#111827;
+            color:#fff;
+        }
+        .btn-light{
+            background:#e5e7eb;
+            color:#111827;
+        }
+    </style>
+</head>
+<body>
+    .topnav{
+    background:#111827;
+    color:#fff;
+    padding:14px 22px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:16px;
+    flex-wrap:wrap;
+    box-shadow:0 6px 16px rgba(0,0,0,.12);
+}
+
+.brand{
+    display:flex;
+    align-items:center;
+}
+
+.brand-link{
+    text-decoration:none;
+    color:#fff;
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+
+.brand-mark{
+    background:#fff;
+    color:#111827;
+    font-weight:bold;
+    font-size:12px;
+    padding:6px 10px;
+    border-radius:999px;
+    letter-spacing:.5px;
+}
+
+.brand-name{
+    font-size:18px;
+    font-weight:bold;
+    letter-spacing:.3px;
+}
+
+.nav-links{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+}
+
+.nav-links a{
+    color:#fff;
+    text-decoration:none;
+    font-weight:bold;
+    padding:9px 13px;
+    border-radius:8px;
+    transition:.2s ease;
+}
+
+.nav-links a:hover{
+    background:rgba(255,255,255,.12);
+}
+
+    <div class="wrap">
+        <div class="card">
+            <h1 class="ok">Cotización procesada</h1>
+            <p class="msg">{{ mensaje }}</p>
+
+            {% if es_modo_prueba %}
+                <div class="alert">
+                    <strong>Modo prueba activo:</strong>
+                    el sistema no envió un correo real.
+                    Revise la terminal del servidor para ver el contenido del correo generado.
+                </div>
+            {% endif %}
+
+            <div class="grid">
+                <div class="label">Número:</div>
+                <div>{{ numero_cotizacion }}</div>
+
+                <div class="label">Cliente:</div>
+                <div>{{ solicitud.empresa }}</div>
+
+                <div class="label">Contacto:</div>
+                <div>{{ solicitud.contacto }}</div>
+
+                <div class="label">Correo:</div>
+                <div>{{ solicitud.correo }}</div>
+
+                <div class="label">Equipo:</div>
+                <div>{{ solicitud.equipo_recomendado }}</div>
+
+                <div class="label">Valor estimado:</div>
+                <div>$ {{ solicitud.valor_estimado }}</div>
+
+                <div class="label">Tiempo estimado:</div>
+                <div>{{ solicitud.tiempo_entrega_estimado_dias }} días</div>
+
+                <div class="label">Proyecto / Pozo:</div>
+                <div>{{ solicitud.nombre_proyecto }}</div>
+
+                <div class="label">Observaciones:</div>
+                <div>{{ solicitud.observaciones_cliente }}</div>
+            </div>
+
+            <div class="actions">
+                <a class="btn btn-primary" href="{% url 'descargar_pdf' solicitud.id %}">Descargar PDF</a>
+                <a class="btn btn-light" href="{% url 'cotizador' %}">Volver al cotizador</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

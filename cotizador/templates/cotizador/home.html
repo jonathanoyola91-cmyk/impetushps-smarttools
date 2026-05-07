@@ -1,0 +1,462 @@
+{% extends "cotizador/base.html" %}
+{% load static %}
+
+{% block title %}IMPETUS Smart Tools{% endblock %}
+
+{% block extra_css %}
+<style>
+.wrap{
+    max-width:1240px;
+    margin:0 auto;
+    padding:28px 24px 64px;
+}
+.hero{
+    background:linear-gradient(135deg, #0f172a 0%, #111827 45%, #1e3a8a 100%);
+    border-radius:18px;
+    overflow:hidden;
+    display:grid;
+    grid-template-columns:1.1fr .9fr;
+    min-height:470px;
+    box-shadow:0 18px 40px rgba(15,23,42,.18);
+    max-width:1980px;
+    margin:0 auto;
+}
+
+.hero-left{
+    padding:54px 48px;
+    color:#fff;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+}
+
+.hero-badge{
+    display:inline-block;
+    width:max-content;
+    background:rgba(255,255,255,.12);
+    color:#dbeafe;
+    border:1px solid rgba(255,255,255,.12);
+    padding:8px 14px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:bold;
+    margin-bottom:18px;
+    letter-spacing:.4px;
+}
+
+.hero-left h1{
+    margin:0 0 18px;
+    font-size:56px;
+    line-height:1.03;
+    letter-spacing:-1px;
+}
+
+.hero-left p{
+    margin:0;
+    font-size:19px;
+    line-height:1.7;
+    color:rgba(255,255,255,.85);
+    max-width:620px;
+}
+
+.hero-proof{
+    margin-top:14px;
+    margin-bottom:22px;
+    font-size:15px;
+    font-weight:700;
+    color:#22c55e;
+}
+
+.hero-actions{
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+    margin-top:8px;
+}
+
+.btn{
+    display:inline-block;
+    text-decoration:none;
+    padding:14px 22px;
+    border-radius:12px;
+    font-weight:bold;
+    transition:.2s ease;
+}
+
+.btn-primary{
+    background:#16a34a;
+    color:#fff;
+}
+
+.btn-primary:hover{
+    transform:translateY(-1px);
+    box-shadow:0 10px 20px rgba(22,163,74,.25);
+}
+
+.btn-secondary{
+    background:#fff;
+    color:#111827;
+}
+
+.btn-secondary:hover{
+    transform:translateY(-1px);
+}
+
+.hero-right{
+    position:relative;
+    padding:0;
+    min-height:100%;
+}
+
+.hero-image-panel:hover{
+    transform:scale(1.01);
+    transition:.4s;
+}
+
+.hero-image-panel{
+    background-image:
+        linear-gradient(to top, rgba(15,23,42,.72), rgba(15,23,42,.25)),
+        url("{% static 'img/hero_bomba.jpeg' %}");
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+    border-left:1px solid rgba(255,255,255,.08);
+    display:flex;
+    align-items:flex-end;
+    justify-content:flex-start;
+}
+
+.hero-image-overlay{
+    width:100%;
+    padding:28px;
+    display:flex;
+    align-items:flex-end;
+    min-height:100%;
+}
+
+.hero-image-label{
+    background:rgba(15,23,42,.78);
+    color:#fff;
+    padding:16px 18px;
+    border-radius:16px;
+    font-size:14px;
+    line-height:1.6;
+    border:1px solid rgba(255,255,255,.10);
+    max-width:420px;
+    box-shadow:0 10px 24px rgba(0,0,0,.18);
+}
+
+.hero-image-label strong{
+    display:block;
+    margin-bottom:4px;
+    font-size:15px;
+}
+
+.mini-strip{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:18px;
+    margin:26px auto 42px;
+    max-width:1980px;
+}
+
+.mini-item{
+    background:#fff;
+    border-radius:18px;
+    padding:20px 18px;
+    border:1px solid #e5e7eb;
+    box-shadow:0 10px 24px rgba(0,0,0,.05);
+    text-align:center;
+    font-weight:bold;
+    color:#111827;
+}
+
+.section-head{
+    text-align:center;
+    margin-bottom:24px;
+}
+
+.section-head h2{
+    margin:0 0 10px;
+    font-size:34px;
+    color:#111827;
+}
+
+.section-head p{
+    margin:0 auto;
+    max-width:920px;
+    color:#6b7280;
+    line-height:1.7;
+    font-size:20px;
+}
+
+.cards{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:24px;
+    max-width:1980px;
+    margin:0 auto;
+}
+
+.card{
+    background:#fff;
+    border:1px solid #e5e7eb;
+    border-radius:22px;
+    padding:28px;
+    box-shadow:0 12px 28px rgba(0,0,0,.06);
+    transition:.2s ease;
+    min-height:290px;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+}
+
+.card:hover{
+    transform:translateY(-4px);
+    box-shadow:0 18px 36px rgba(0,0,0,.08);
+}
+
+.icon{
+    font-size:42px;
+    margin-bottom:14px;
+}
+
+.card h3{
+    margin:0 0 12px;
+    font-size:25px;
+    color:#111827;
+}
+
+.card p{
+    margin:0;
+    color:#6b7280;
+    line-height:1.7;
+    font-size:15px;
+}
+
+.card-actions{
+    margin-top:22px;
+}
+
+.btn-dark{
+    background:#111827;
+    color:#fff;
+}
+
+.btn-dark:hover{
+    transform:translateY(-1px);
+}
+
+.cta{
+    margin:52px auto 0;
+    max-width:1980px;
+    background:#ffffff;
+    border:1px solid #e5e7eb;
+    border-radius:24px;
+    padding:28px;
+    box-shadow:0 12px 28px rgba(0,0,0,.05);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:18px;
+    flex-wrap:wrap;
+}
+
+.cta h3{
+    margin:0 0 8px;
+    font-size:28px;
+    color:#111827;
+}
+
+.cta p{
+    margin:0;
+    color:#6b7280;
+    line-height:1.7;
+    max-width:760px;
+}
+
+.footer-note{
+    margin-top:40px;
+    text-align:center;
+    color:#6b7280;
+    font-size:14px;
+}
+
+@media (max-width: 1050px){
+    .hero{
+        grid-template-columns:1fr;
+    }
+
+    .cards,
+    .mini-strip{
+        grid-template-columns:1fr;
+    }
+
+    .hero-left h1{
+        font-size:44px;
+    }
+}
+
+@media (max-width: 720px){
+    .wrap{
+        padding:20px 16px 56px;
+    }
+
+    .hero-left{
+        padding:34px 24px;
+    }
+
+    .hero-left h1{
+        font-size:36px;
+    }
+
+    .hero-left p{
+        font-size:17px;
+    }
+
+    .hero-right{
+        min-height:280px;
+    }
+
+    .hero-image-overlay{
+        padding:20px;
+    }
+
+    .section-head h2{
+        font-size:28px;
+    }
+
+    .card{
+        padding:22px;
+    }
+
+    .cta{
+        padding:22px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wrap">
+
+    <section class="hero">
+        <div class="hero-left">
+            <span class="hero-badge">INGENIERÍA + SOPORTE + HERRAMIENTAS</span>
+
+            <h1>Diagnóstico, cotización y soporte técnico de bombeo</h1>
+
+            <p class="hero-text">
+                IMPETUS Smart Tools convierte consultas en oportunidades reales de servicio.
+                Cotice equipos, identifique fallas y conecte rápidamente con soporte técnico especializado.
+            </p>
+
+            <p class="hero-proof">
+                Fabricación propia • Reparación multimarca • Soporte técnico nacional
+            </p>
+
+            <div class="hero-actions">
+                <a class="btn btn-primary" target="_blank"
+                   href="https://wa.me/573173315060?text=Hola,%20necesito%20soporte%20t%C3%A9cnico%20de%20IMPETUS.">
+                    Solicitar soporte inmediato
+                </a>
+
+                <a class="btn btn-secondary" href="#herramientas">
+                    Ver herramientas
+                </a>
+            </div>
+        </div>
+
+        <div class="hero-right hero-image-panel">
+            <div class="hero-image-overlay">
+                <div class="hero-image-label">
+                    <strong>IMPETUS HPS</strong>
+                    Soluciones de alto desempeño para bombeo, soporte técnico e ingeniería aplicada.
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="mini-strip">
+        <div class="mini-item">✔ Soporte técnico especializado</div>
+        <div class="mini-item">✔ Diagnóstico y orientación rápida</div>
+        <div class="mini-item">✔ Herramientas que generan servicios</div>
+    </section>
+
+    <section id="herramientas">
+        <div class="section-head">
+            <h2>Herramientas disponibles</h2>
+            <p>
+                Tres módulos enfocados en ayudar al cliente y, al mismo tiempo, abrir la puerta
+                a servicios técnicos, reparación, soporte y acompañamiento de IMPETUS.
+            </p>
+        </div>
+
+        <div class="cards">
+            <div class="card">
+                <div>
+                    <div class="icon">⚙️</div>
+                    <h3>Cotizador de Bombas</h3>
+                    <p>
+                        Selección técnica según condiciones de operación para iniciar cotizaciones,
+                        suministro y soporte comercial especializado.
+                    </p>
+                </div>
+
+                <div class="card-actions">
+                    <a class="btn btn-dark" href="{% url 'cotizador' %}">Cotizar ahora</a>
+                </div>
+            </div>
+
+            <div class="card">
+                <div>
+                    <div class="icon">🔩</div>
+                    <h3>Reparación Cámara de Empuje</h3>
+                    <p>
+                        Presupuesto preliminar para reparación y evaluación técnica,
+                        orientado a captar trabajos de recuperación y servicio.
+                    </p>
+                </div>
+
+                <div class="card-actions">
+                    <a class="btn btn-dark" href="{% url 'reparacion_camara' %}">Solicitar evaluación</a>
+                </div>
+            </div>
+
+            <div class="card">
+                <div>
+                    <div class="icon">⚡</div>
+                    <h3>Diagnóstico de Variador</h3>
+                    <p>
+                        Consulta rápida por código de falla para orientar al usuario
+                        hacia diagnóstico, acción correctiva y soporte técnico.
+                    </p>
+                </div>
+
+                <div class="card-actions">
+                    <a class="btn btn-dark" href="{% url 'diagnostico_variador' %}">Diagnosticar ahora</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta">
+        <div>
+            <h3>¿Equipo detenido o condición crítica?</h3>
+            <p>
+                Use las herramientas o escríbanos directamente. Podemos acompañarlo con diagnóstico,
+                revisión técnica, reparación y soporte especializado.
+            </p>
+        </div>
+
+        <a class="btn btn-primary" target="_blank"
+           href="https://wa.me/573173315060?text=Hola,%20necesito%20atenci%C3%B3n%20t%C3%A9cnica%20urgente.">
+            Contactar por WhatsApp
+        </a>
+    </section>
+
+    <div class="footer-note">
+        IMPETUS Smart Tools · Plataforma de apoyo técnico y comercial
+    </div>
+</div>
+{% endblock %}

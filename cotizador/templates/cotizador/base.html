@@ -1,0 +1,163 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>{% block title %}IMPETUS Smart Tools{% endblock %}</title>
+
+<style>
+*{box-sizing:border-box}
+
+body{
+    margin:0;
+    font-family:Arial,sans-serif;
+    background:#eef2f7;
+    color:#1f2937;
+}
+
+.topnav{
+    background:#071127;
+    padding:10px 0;
+}
+
+.topnav-inner{
+    width:100%;
+    max-width:1980px;
+    margin:0 auto;
+    padding:0 32px;
+    min-height:68px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:24px;
+}
+
+.brand-link{
+    text-decoration:none;
+    color:#fff;
+    display:flex;
+    align-items:center;
+    gap:14px;
+}
+
+.brand-logo{
+    height:52px;
+    width:auto;
+    display:block;
+    object-fit:contain;
+}
+
+.brand-text{
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    line-height:1;
+}
+
+.brand-title{
+    font-size:30px;
+    font-weight:800;
+    color:#fff;
+    letter-spacing:.5px;
+}
+
+.brand-sub{
+    font-size:14px;
+    color:#cbd5e1;
+    margin-top:2px;
+    letter-spacing:.3px;
+}
+
+.nav-links{
+    display:flex;
+    gap:14px;
+    align-items:center;
+    flex-wrap:wrap;
+}
+
+.nav-links a{
+    color:#fff;
+    text-decoration:none;
+    font-weight:700;
+    padding:10px 14px;
+    border-radius:10px;
+    transition:.2s ease;
+    font-size:15px;
+}
+
+.nav-links a:hover{
+    background:rgba(255,255,255,.10);
+}
+
+.page-wrap{
+     width:100%;
+     max-width:1980px;
+     margin:0 auto;
+     padding:24px 32px 50px;
+}
+
+@media(max-width:900px){
+    .topnav-inner{
+        padding:12px 16px;
+        flex-direction:column;
+        align-items:flex-start;
+    }
+
+    .brand-logo{
+        height:40px;
+    }
+
+    .brand-title{
+        font-size:18px;
+    }
+
+    .brand-sub{
+        font-size:12px;
+    }
+
+    .nav-links{
+        gap:14px;
+    }
+
+    .nav-links a{
+        font-size:14px;
+    }
+}
+
+{% block extra_css %}{% endblock %}
+</style>
+</head>
+
+<body>
+
+<div class="topnav">
+    <div class="topnav-inner">
+
+        <div class="topnav-left">
+            <a href="{% url 'home' %}" class="brand-link">
+                <img src="{% static 'cotizador/logo.png' %}" class="brand-logo" alt="IMPETUS">
+                <div class="brand-text">
+                    <span class="brand-title">IMPETUS</span>
+                    <span class="brand-sub">Smart Tools</span>
+                </div>
+            </a>
+        </div>
+
+        <div class="topnav-right">
+            <div class="nav-links">
+                <a href="{% url 'home' %}">🏠 Home</a>
+                <a href="{% url 'cotizador' %}">⚙️ Cotizador Bombas</a>
+                <a href="{% url 'historial_cotizaciones' %}">📄 Historial</a>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div class="page-wrap">
+    {% block content %}{% endblock %}
+</div>
+
+{% block extra_js %}{% endblock %}
+</body>
+</html>

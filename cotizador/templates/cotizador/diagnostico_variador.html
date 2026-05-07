@@ -1,0 +1,229 @@
+{% extends "cotizador/base.html" %}
+
+{% block title %}Diagnóstico Variador{% endblock %}
+
+{% block extra_css %}
+<style>
+.wrap{
+    max-width:1150px;
+    margin:0 auto;
+    padding:34px 20px 60px;
+}
+
+.grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:24px;
+}
+
+.card{
+    background:#fff;
+    border:1px solid #e5e7eb;
+    border-radius:20px;
+    padding:30px;
+    box-shadow:0 12px 28px rgba(0,0,0,.06);
+}
+
+.card h2{
+    margin-top:0;
+    font-size:30px;
+    color:#111827;
+}
+
+.sub{
+    color:#6b7280;
+    margin-bottom:22px;
+    line-height:1.6;
+}
+
+label{
+    display:block;
+    margin-bottom:6px;
+    font-weight:bold;
+    color:#111827;
+}
+
+input,select{
+    width:100%;
+    padding:13px 14px;
+    border:1px solid #d1d5db;
+    border-radius:12px;
+    margin-bottom:16px;
+    font-size:14px;
+}
+
+input:focus,select:focus{
+    outline:none;
+    border-color:#111827;
+    box-shadow:0 0 0 3px rgba(17,24,39,.08);
+}
+
+.btn{
+    display:inline-block;
+    border:none;
+    border-radius:12px;
+    padding:13px 18px;
+    font-weight:bold;
+    cursor:pointer;
+    text-decoration:none;
+}
+
+.btn-dark{
+    background:#111827;
+    color:#fff;
+}
+
+.btn-green{
+    background:#16a34a;
+    color:#fff;
+    margin-top:14px;
+}
+
+.btn-blue{
+    background:#2563eb;
+    color:#fff;
+    margin-top:14px;
+    margin-right:10px;
+}
+
+.alert{
+    background:#fff7ed;
+    border:1px solid #fdba74;
+    color:#9a3412;
+    padding:14px;
+    border-radius:12px;
+    margin-top:18px;
+}
+
+.result p{
+    margin:0 0 14px;
+    line-height:1.6;
+}
+
+.brands{
+    margin-top:28px;
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:12px;
+}
+
+.brand{
+    background:#f8fafc;
+    border:1px solid #e5e7eb;
+    border-radius:12px;
+    padding:12px;
+    text-align:center;
+    font-weight:bold;
+    color:#374151;
+}
+
+@media(max-width:900px){
+    .grid{
+        grid-template-columns:1fr;
+    }
+
+    .brands{
+        grid-template-columns:repeat(2,1fr);
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wrap">
+
+<div class="grid">
+
+<div class="card">
+<h2>Diagnóstico de Variador</h2>
+<p class="sub">Consulta rápida por código de falla.</p>
+
+<form method="post">
+{% csrf_token %}
+
+<label>Marca</label>
+<select name="marca" required>
+<option value="">Seleccione</option>
+
+{% for marca in marcas %}
+<option value="{{ marca }}" {% if request.POST.marca == marca %}selected{% endif %}>
+{{ marca }}
+</option>
+{% endfor %}
+
+</select>
+
+<label>Código</label>
+<input type="text" name="codigo" placeholder="Ej: 4210">
+
+<button type="submit" class="btn btn-dark">
+Consultar diagnóstico
+</button>
+
+</form>
+
+<div class="brands">
+<div class="brand">ABB</div>
+<div class="brand">SIEMENS</div>
+<div class="brand">SCHNEIDER</div>
+<div class="brand">DANFOSS</div>
+<div class="brand">YASKAWA</div>
+<div class="brand">WEG</div>
+<div class="brand">GSC</div>
+<div class="brand">UniConn</div>
+</div>
+
+{% if error %}
+<div class="alert">{{ error }}</div>
+{% endif %}
+
+</div>
+
+<div class="card">
+<h2>Resultado</h2>
+
+{% if resultado %}
+<div class="result">
+
+<p><b>Marca:</b> {{ resultado.marca }}</p>
+<p><b>Código:</b> {{ resultado.codigo }}</p>
+<p><b>Tipo:</b> {{ resultado.tipo }}</p>
+<p><b>Nombre:</b> {{ resultado.nombre_falla }}</p>
+<p><b>Causa probable:</b> {{ resultado.causa_probable }}</p>
+<p><b>Categoría:</b> {{ resultado.categoria }}</p>
+
+<div class="alert">
+Se recomienda solicitar soporte técnico especializado de IMPETUS HPS.
+</div>
+
+{% if resultado.accion_recomendada %}
+<button class="btn btn-blue" onclick="document.getElementById('accion').style.display='block'">
+Ver acción correctiva
+</button>
+
+<div id="accion" style="display:none; margin-top:14px;">
+<div class="alert">
+{{ resultado.accion_recomendada }}
+</div>
+</div>
+{% endif %}
+
+<br>
+
+<a class="btn btn-green"
+href="https://wa.me/573173315060?text=Hola necesito soporte para variador código {{ resultado.codigo }}"
+target="_blank">
+Solicitar soporte técnico
+</a>
+
+</div>
+
+{% else %}
+<p>Aquí aparecerá el diagnóstico consultado.</p>
+{% endif %}
+
+</div>
+
+</div>
+</div>
+{% endblock %}

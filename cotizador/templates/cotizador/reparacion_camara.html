@@ -1,0 +1,421 @@
+{% extends "cotizador/base.html" %}
+
+{% block title %}Reparación Cámara de Empuje{% endblock %}
+
+{% block extra_css %}
+<style>
+.wrap{
+    width:min(100% - 32px, 1080px);
+    margin:24px auto 46px;
+}
+
+.page-head{
+    margin:0 0 20px;
+}
+
+.page-head h1{
+    margin:0 0 8px;
+    font-size:32px;
+    line-height:1.15;
+    color:#111827;
+}
+
+.page-head p{
+    margin:0;
+    color:#6b7280;
+    line-height:1.6;
+    font-size:20px;
+    max-width:1960px;
+}
+
+.grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:24px;
+    
+}
+
+.card{
+    background:#fff;
+    border:1px solid #e5e7eb;
+    border-radius:18px;
+    box-shadow:0 10px 30px rgba(0,0,0,.06);
+    padding:24px;
+}
+
+.card h2{
+    margin:0 0 14px;
+    font-size:22px;
+    color:#111827;
+}
+
+.section-subtitle{
+    margin:0 0 18px;
+    color:#6b7280;
+    line-height:1.6;
+    font-size:14px;
+}
+
+.form-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px 16px;
+}
+
+.form-grid .full{
+    grid-column:1 / 3;
+}
+
+label{
+    display:block;
+    margin-bottom:6px;
+    font-weight:bold;
+    font-size:13px;
+    color:#111827;
+}
+
+input, select, textarea{
+    width:100%;
+    padding:11px 12px;
+    border:1px solid #d1d5db;
+    border-radius:10px;
+    font-size:14px;
+    margin-bottom:2px;
+    background:#fff;
+}
+
+input:focus, select:focus, textarea:focus{
+    outline:none;
+    border-color:#111827;
+    box-shadow:0 0 0 3px rgba(17,24,39,.08);
+}
+
+textarea{
+    resize:vertical;
+    min-height:92px;
+}
+
+.actions{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+    margin-top:18px;
+}
+
+.btn{
+    display:inline-block;
+    border:none;
+    border-radius:10px;
+    padding:11px 16px;
+    font-weight:bold;
+    cursor:pointer;
+    text-decoration:none;
+    transition:.2s ease;
+    font-size:14px;
+}
+
+.btn-primary{
+    background:#111827;
+    color:#fff;
+}
+
+.btn-primary:hover{
+    opacity:.95;
+}
+
+.btn-warning{
+    background:#facc15;
+    color:#111827;
+}
+
+.btn-warning:hover{
+    opacity:.95;
+}
+
+.error{
+    margin-top:16px;
+    background:#fef2f2;
+    color:#991b1b;
+    border:1px solid #fecaca;
+    padding:12px 14px;
+    border-radius:12px;
+}
+
+.placeholder-box{
+    background:#f9fafb;
+    border:1px dashed #d1d5db;
+    border-radius:14px;
+    padding:16px;
+    color:#6b7280;
+    line-height:1.6;
+    font-size:14px;
+}
+
+.info-grid{
+    display:grid;
+    grid-template-columns:135px 1fr;
+    gap:10px 14px;
+    margin-top:16px;
+    font-size:14px;
+}
+
+.info-label{
+    font-weight:bold;
+    color:#111827;
+}
+
+.result-tag{
+    display:inline-block;
+    background:#dcfce7;
+    color:#166534;
+    font-weight:bold;
+    font-size:12px;
+    padding:7px 12px;
+    border-radius:999px;
+    margin-bottom:16px;
+}
+
+.note{
+    margin-top:18px;
+    background:#eff6ff;
+    color:#1d4ed8;
+    border:1px solid #bfdbfe;
+    padding:14px 16px;
+    border-radius:12px;
+    font-size:13px;
+    line-height:1.6;
+}
+
+.small-help{
+    margin-top:4px;
+    font-size:12px;
+    color:#6b7280;
+}
+
+@media (max-width: 980px){
+    .wrap{
+        width:min(100% - 24px, 100%);
+        margin:20px auto 40px;
+    }
+
+    .grid{
+        grid-template-columns:1fr;
+    }
+}
+
+@media (max-width: 768px){
+    .form-grid{
+        grid-template-columns:1fr;
+    }
+
+    .form-grid .full{
+        grid-column:auto;
+    }
+
+    .info-grid{
+        grid-template-columns:1fr;
+    }
+
+    .page-head h1{
+        font-size:23px;
+    }
+
+    .card{
+        padding:18px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wrap">
+    <div class="page-head">
+        <h1>Cotización presupuestal reparación cámara</h1>
+        <p>
+            Consulte de forma rápida el tiempo estimado y alcance técnico preliminar
+            para reparación de cámara de empuje según marca, modelo y tipo de intervención.
+        </p>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <h2>Ingresar solicitud</h2>
+            <p class="section-subtitle">
+                Complete la información mínima para identificar el requerimiento y generar
+                una orientación presupuestal inicial.
+            </p>
+
+            <form method="post">
+                {% csrf_token %}
+
+                <div class="form-grid">
+
+                    <div>
+                        <label>Empresa</label>
+                        <input type="text" name="empresa" required>
+                    </div>
+
+                    <div>
+                        <label>Contacto</label>
+                        <input type="text" name="contacto" required>
+                    </div>
+
+                    <div>
+                        <label>Teléfono</label>
+                        <input type="text" name="telefono">
+                    </div>
+
+                    <div>
+                        <label>Correo</label>
+                        <input type="email" name="correo" required>
+                    </div>
+
+                    <div class="full">
+                        <label>Proyecto / Pozo</label>
+                        <input type="text" name="nombre_proyecto">
+                    </div>
+
+                    <div>
+                        <label>Marca</label>
+                        <select name="marca" id="marca" required>
+                            <option value="">Seleccione una marca</option>
+                            {% for marca in marcas %}
+                                <option value="{{ marca }}">{{ marca }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label>Modelo</label>
+                        <select name="modelo" id="modelo" required>
+                            <option value="">Seleccione primero una marca</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label>Serial</label>
+                        <input type="text" name="serial">
+                    </div>
+
+                    <div>
+                        <label>Tipo de reparación</label>
+                        <select name="tipo_reparacion" required>
+                            <option value="">Seleccione</option>
+                            <option value="MENOR">Menor</option>
+                            <option value="MAYOR">Mayor</option>
+                            <option value="UPGRADE">Upgrade</option>
+                        </select>
+                    </div>
+
+                    <div class="full">
+                        <label>Observaciones del cliente</label>
+                        <textarea name="observaciones_cliente" rows="4"></textarea>
+                        <div class="small-help">
+                            Puede incluir condición actual, hallazgos, urgencia o restricciones de operación.
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="actions">
+                    <button class="btn btn-primary" type="submit">Calcular reparación</button>
+                </div>
+            </form>
+
+            {% if error %}
+                <div class="error">{{ error }}</div>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <h2>Resultado</h2>
+
+            {% if resultado %}
+                <span class="result-tag">Solicitud registrada</span>
+
+                <div class="info-grid">
+                    <div class="info-label">Número</div>
+                    <div>RC-{{ resultado.id|stringformat:"04d" }}</div>
+
+                    <div class="info-label">Marca</div>
+                    <div>{{ resultado.marca }}</div>
+
+                    <div class="info-label">Modelo</div>
+                    <div>{{ resultado.modelo }}</div>
+
+                    <div class="info-label">Serial</div>
+                    <div>{{ resultado.serial }}</div>
+
+                    <div class="info-label">Tipo reparación</div>
+                    <div>{{ resultado.tipo_reparacion }}</div>
+
+                    <div class="info-label">Tiempo estimado</div>
+                    <div>{{ resultado.tiempo_estimado_texto }}</div>
+
+                    <div class="info-label">Valor comercial</div>
+                    <div>
+                        {% if solicitud_id %}
+                            <a href="{% url 'solicitar_precio_reparacion' solicitud_id %}" class="btn btn-warning">
+                                Ver precio
+                            </a>
+                        {% else %}
+                            A solicitud con asesor comercial
+                        {% endif %}
+                    </div>
+
+                    <div class="info-label">Proyecto / Pozo</div>
+                    <div>{{ resultado.nombre_proyecto }}</div>
+
+                    <div class="info-label">Observación técnica</div>
+                    <div>{{ resultado.observacion_tecnica }}</div>
+
+                    <div class="info-label">Observaciones cliente</div>
+                    <div>{{ resultado.observaciones_cliente }}</div>
+                </div>
+
+                <div class="note">
+                    Esta respuesta corresponde a una orientación presupuestal inicial.
+                    El valor comercial definitivo será suministrado por nuestro asesor,
+                    según validación técnica final, alcance real de reparación y disponibilidad.
+                </div>
+            {% else %}
+                <div class="placeholder-box">
+                    Aquí verá el tiempo estimado, observación técnica y la opción
+                    de solicitar valor comercial con asesor una vez se procese la consulta.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const modelosPorMarca = {{ modelos_por_marca_json|safe }};
+    const marcaSelect = document.getElementById("marca");
+    const modeloSelect = document.getElementById("modelo");
+
+    function actualizarModelos() {
+        const marca = marcaSelect.value;
+        const modelos = modelosPorMarca[marca] || [];
+
+        modeloSelect.innerHTML = "";
+
+        if (!marca) {
+            modeloSelect.innerHTML = '<option value="">Seleccione primero una marca</option>';
+            return;
+        }
+
+        modeloSelect.innerHTML = '<option value="">Seleccione un modelo</option>';
+
+        modelos.forEach(function(modelo) {
+            const option = document.createElement("option");
+            option.value = modelo;
+            option.textContent = modelo;
+            modeloSelect.appendChild(option);
+        });
+    }
+
+    marcaSelect.addEventListener("change", actualizarModelos);
+</script>
+{% endblock %}
