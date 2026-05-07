@@ -23,7 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-m9&^$6)kah385^q911!*f)v_0^0#suxgfms1gm+89w7als2a35'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = [
     "impetushps.com",
@@ -144,3 +144,5 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = "no-reply@impetushps.com"
 COTIZADOR_EMAIL_COPIA = "su_correo@empresa.com"
 WHATSAPP_SOPORTE = "573173315060"
+
+# Render deploy refresh
