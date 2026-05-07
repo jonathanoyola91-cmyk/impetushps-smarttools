@@ -136,9 +136,10 @@ input:focus,select:focus{
 
 <div class="card">
 <h2>Diagnóstico de Variador</h2>
-<p class="sub">Consulta rápida por código de falla.</p>
+<p class="sub">Consulta rápida pública por código de falla. El sistema registra actividad para proteger la base técnica contra uso automatizado o excesivo.</p>
 
 <form method="post">
+<input type="text" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;opacity:0;height:0;width:0;">
 {% csrf_token %}
 
 <label>Marca</label>

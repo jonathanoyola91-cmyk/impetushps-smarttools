@@ -1,46 +1,120 @@
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 import json
-import openpyxl
 
+import openpyxl
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import LoginView
 from django.db.models import Q
 from django.http import FileResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
 
-from .email_utils import enviar_cotizacion_por_correo
-from .forms import ImportadorDiagnosticoVariadorForm
-from .models import SolicitudCotizacion
+from .email_utils import (
+    enviar_cotizacion_por_correo,
+    notificar_nueva_cotizacion_bomba,
+    notificar_nueva_reparacion_camara,
+    notificar_precio_reparacion_camara,
+    notificar_uso_sospechoso_vsd,
+)
+from .forms import ImportadorDiagnosticoVariadorForm, ImportadorReparacionCamaraForm
+from .models import (
+    ConsultaDiagnosticoVariadorLog,
+    DiagnosticoVariador,
+    ReparacionCamaraTarifa,
+    SolicitudCotizacion,
+    SolicitudReparacionCamara,
+)
 from .pdf_utils import generar_pdf_cotizacion
 from .services import seleccionar_mejor_punto, calcular_dp
-from .models import ReparacionCamaraTarifa, SolicitudReparacionCamara
-from .models import DiagnosticoVariador
+
+
+VSD_MONITOR_WINDOW_MINUTES = 60
+VSD_MONITOR_IP_THRESHOLD = 25
+VSD_MONITOR_SESSION_THRESHOLD = 18
+
+
+def _str_value(value):
+    return str(value).strip() if value is not None else ""
+
+
+def _decimal_value(value, default="0"):
+    if value is None or str(value).strip() == "":
+        return Decimal(default)
+    try:
+        return Decimal(str(value).replace("$", "").replace(",", "").strip())
+    except (InvalidOperation, ValueError):
+        return Decimal(default)
+
+
+def _bool_value(value, default=True):
+    if value is None or str(value).strip() == "":
+        return default
+    return str(value).strip().lower() in ["si", "sí", "true", "1", "activo", "yes", "x"]
+
+
+def _client_ip(request):
+    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+    if x_forwarded_for:
+        return x_forwarded_for.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR")
+
+
+def _registrar_consulta_vsd(request, marca, codigo, encontrado):
+    if not request.session.session_key:
+        request.session.save()
+
+    log = ConsultaDiagnosticoVariadorLog.objects.create(
+        marca=marca,
+        codigo=codigo,
+        encontrado=encontrado,
+        ip_address=_client_ip(request),
+        user_agent=request.META.get("HTTP_USER_AGENT", "")[:2000],
+        session_key=request.session.session_key or "",
+        referer=request.META.get("HTTP_REFERER", "")[:2000],
+        path=request.path[:255],
+    )
+
+    desde = timezone.now() - timezone.timedelta(minutes=VSD_MONITOR_WINDOW_MINUTES)
+    por_ip = ConsultaDiagnosticoVariadorLog.objects.filter(
+        ip_address=log.ip_address,
+        created_at__gte=desde,
+    ).count() if log.ip_address else 0
+    por_sesion = ConsultaDiagnosticoVariadorLog.objects.filter(
+        session_key=log.session_key,
+        created_at__gte=desde,
+    ).count() if log.session_key else 0
+
+    if por_ip >= VSD_MONITOR_IP_THRESHOLD or por_sesion >= VSD_MONITOR_SESSION_THRESHOLD:
+        log.es_sospechoso = True
+        try:
+            notificar_uso_sospechoso_vsd(log, por_ip, por_sesion, VSD_MONITOR_WINDOW_MINUTES)
+            log.notificacion_enviada = True
+        except Exception:
+            log.notificacion_enviada = False
+        log.save(update_fields=["es_sospechoso", "notificacion_enviada"])
+
+    return log
+
 
 def home_view(request):
     return render(request, "cotizador/home.html")
-import json
 
+
+@login_required
 def reparacion_camara_view(request):
     resultado = None
     error = None
     solicitud_id = None
 
-    tarifas = ReparacionCamaraTarifa.objects.filter(
-        activo=True
-    ).order_by("marca", "modelo")
-
-    marcas = list(
-        tarifas.values_list("marca", flat=True).distinct()
-    )
-
+    tarifas = ReparacionCamaraTarifa.objects.filter(activo=True).order_by("marca", "modelo")
+    marcas = list(tarifas.values_list("marca", flat=True).distinct())
     modelos_por_marca = {}
 
     for marca in marcas:
         modelos_por_marca[marca] = list(
-            tarifas.filter(marca=marca)
-            .values_list("modelo", flat=True)
-            .distinct()
+            tarifas.filter(marca=marca).values_list("modelo", flat=True).distinct()
         )
 
     if request.method == "POST":
@@ -50,14 +124,12 @@ def reparacion_camara_view(request):
             correo = request.POST.get("correo", "").strip()
             telefono = request.POST.get("telefono", "").strip()
             nombre_proyecto = request.POST.get("nombre_proyecto", "").strip()
-
             marca = request.POST.get("marca", "").strip()
             modelo = request.POST.get("modelo", "").strip()
             serial = request.POST.get("serial", "").strip()
             tipo_reparacion = request.POST.get("tipo_reparacion", "").strip()
             observaciones_cliente = request.POST.get("observaciones_cliente", "").strip()
 
-            # Validación mínima
             if not empresa or not contacto or not correo:
                 error = "Debe ingresar empresa, contacto y correo."
             else:
@@ -65,7 +137,7 @@ def reparacion_camara_view(request):
                     activo=True,
                     marca=marca,
                     modelo=modelo,
-                    tipo_reparacion=tipo_reparacion
+                    tipo_reparacion=tipo_reparacion,
                 ).first()
 
                 if not tarifa:
@@ -86,10 +158,12 @@ def reparacion_camara_view(request):
                         tiempo_estimado_texto=tarifa.tiempo_estimado_texto,
                         valor_estimado=tarifa.valor_estimado,
                     )
-
                     resultado = solicitud
                     solicitud_id = solicitud.id
-
+                    try:
+                        notificar_nueva_reparacion_camara(solicitud)
+                    except Exception as exc:
+                        messages.warning(request, f"Solicitud creada, pero no se pudo enviar notificación: {exc}")
         except Exception as exc:
             error = f"Error: {exc}"
 
@@ -100,52 +174,49 @@ def reparacion_camara_view(request):
         "marcas": marcas,
         "modelos_por_marca_json": json.dumps(modelos_por_marca),
     })
+
+
+@login_required
 def solicitar_precio_reparacion(request, solicitud_id):
     solicitud = get_object_or_404(SolicitudReparacionCamara, id=solicitud_id)
-
     solicitud.solicito_precio = True
     solicitud.fecha_solicitud_precio = timezone.now()
     solicitud.save()
+
+    try:
+        notificar_precio_reparacion_camara(solicitud)
+    except Exception as exc:
+        messages.warning(request, f"Precio solicitado, pero no se pudo enviar notificación: {exc}")
 
     mensaje = (
         f"El cliente {solicitud.empresa} solicitó precio para la reparación "
         f"de cámara {solicitud.marca} {solicitud.modelo} - {solicitud.tipo_reparacion}."
     )
+    return render(request, "cotizador/precio_solicitado.html", {"solicitud": solicitud, "mensaje": mensaje})
 
-    return render(request, "cotizador/precio_solicitado.html", {
-        "solicitud": solicitud,
-        "mensaje": mensaje,
-    })
+
+@login_required
 def descargar_pdf(request, solicitud_id):
     solicitud = get_object_or_404(SolicitudCotizacion, id=solicitud_id)
-
     ruta = f"cotizacion_{solicitud.id}.pdf"
     generar_pdf_cotizacion(ruta, solicitud)
-
     return FileResponse(open(ruta, "rb"), as_attachment=True)
 
 
+@login_required
 def enviar_cotizacion_email(request, solicitud_id):
     solicitud = get_object_or_404(SolicitudCotizacion, id=solicitud_id)
-
     enviar_cotizacion_por_correo(
         solicitud,
-        correo_copia=getattr(settings, "COTIZADOR_EMAIL_COPIA", None),
+        correo_copia=getattr(settings, "COTIZADOR_EMAIL_COPIA", "director.comercial@impetushps.co"),
     )
 
     numero_cotizacion = f"CP-{solicitud.id:04d}"
     es_modo_prueba = settings.EMAIL_BACKEND == "django.core.mail.backends.console.EmailBackend"
-
     if es_modo_prueba:
-        mensaje = (
-            f"La cotización presupuestal {numero_cotizacion} fue procesada en modo prueba. "
-            f"El contenido del correo fue generado y mostrado en la consola para revisión."
-        )
+        mensaje = f"La cotización presupuestal {numero_cotizacion} fue procesada en modo prueba."
     else:
-        mensaje = (
-            f"La cotización presupuestal {numero_cotizacion} fue enviada correctamente "
-            f"al correo {solicitud.correo}."
-        )
+        mensaje = f"La cotización presupuestal {numero_cotizacion} fue enviada correctamente al correo {solicitud.correo}."
 
     return render(request, "cotizador/email_enviado.html", {
         "solicitud": solicitud,
@@ -155,6 +226,7 @@ def enviar_cotizacion_email(request, solicitud_id):
     })
 
 
+@login_required
 def cotizador_view(request):
     resultado = None
     error = None
@@ -168,25 +240,16 @@ def cotizador_view(request):
             telefono = request.POST.get("telefono", "").strip()
             nombre_proyecto = request.POST.get("nombre_proyecto", "").strip()
             observaciones_cliente = request.POST.get("observaciones_cliente", "").strip()
-
             caudal = Decimal(request.POST.get("caudal", "0"))
             ps = Decimal(request.POST.get("presion_succion", "0"))
             pd = Decimal(request.POST.get("presion_descarga", "0"))
-            temperatura_fluido = request.POST.get("temperatura_fluido")
-            gravedad_especifica = request.POST.get("gravedad_especifica")
-            viscosidad = request.POST.get("viscosidad")
 
-            resultado = seleccionar_mejor_punto(
-                caudal=caudal,
-                presion_succion=ps,
-                presion_descarga=pd,
-            )
+            resultado = seleccionar_mejor_punto(caudal=caudal, presion_succion=ps, presion_descarga=pd)
 
             if not resultado:
                 error = "No se encontró un equipo compatible."
             else:
                 dp = calcular_dp(ps, pd)
-
                 solicitud = SolicitudCotizacion.objects.create(
                     empresa=empresa,
                     contacto=contacto,
@@ -203,9 +266,11 @@ def cotizador_view(request):
                     valor_estimado=resultado["equipo"].precio_base or 0,
                     tiempo_entrega_estimado_dias=resultado["equipo"].tiempo_base_dias or 0,
                 )
-
                 solicitud_id = solicitud.id
-
+                try:
+                    notificar_nueva_cotizacion_bomba(solicitud)
+                except Exception as exc:
+                    messages.warning(request, f"Cotización creada, pero no se pudo enviar notificación: {exc}")
         except Exception as exc:
             error = f"Error en los datos ingresados: {exc}"
 
@@ -216,192 +281,177 @@ def cotizador_view(request):
     })
 
 
+@login_required
 def historial_cotizaciones(request):
     q = request.GET.get("q", "").strip()
-
     solicitudes = SolicitudCotizacion.objects.all().order_by("-created_at")
-
     if q:
         solicitudes = solicitudes.filter(
-            Q(empresa__icontains=q) |
-            Q(contacto__icontains=q) |
-            Q(correo__icontains=q) |
-            Q(nombre_proyecto__icontains=q)
+            Q(empresa__icontains=q) | Q(contacto__icontains=q) | Q(correo__icontains=q) | Q(nombre_proyecto__icontains=q)
         ).order_by("-created_at")
+    return render(request, "cotizador/historial.html", {"solicitudes": solicitudes, "q": q})
 
-    return render(request, "cotizador/historial.html", {
-        "solicitudes": solicitudes,
-        "q": q,
-    })
 
 def diagnostico_variador_view(request):
     resultado = None
     error = None
 
-    marcas = (
-        DiagnosticoVariador.objects
-        .filter(activo=True)
-        .values_list("marca", flat=True)
-        .distinct()
-        .order_by("marca")
-    )
+    marcas = DiagnosticoVariador.objects.filter(activo=True).values_list("marca", flat=True).distinct().order_by("marca")
 
     if request.method == "POST":
         marca = request.POST.get("marca", "").strip()
         codigo = request.POST.get("codigo", "").strip()
+        website = request.POST.get("website", "").strip()  # honeypot anti-bot simple
 
-        resultado = DiagnosticoVariador.objects.filter(
-            activo=True,
-            marca__iexact=marca,
-            codigo__iexact=codigo
-        ).first()
+        if website:
+            error = "No se pudo procesar la consulta."
+            _registrar_consulta_vsd(request, marca, codigo, False)
+        else:
+            resultado = DiagnosticoVariador.objects.filter(activo=True, marca__iexact=marca, codigo__iexact=codigo).first()
+            _registrar_consulta_vsd(request, marca, codigo, bool(resultado))
+            if not resultado:
+                error = "No se encontró información para ese código."
 
-        if not resultado:
-            error = "No se encontró información para ese código."
+    return render(request, "cotizador/diagnostico_variador.html", {"resultado": resultado, "error": error, "marcas": marcas})
 
-    return render(request, "cotizador/diagnostico_variador.html", {
-        "resultado": resultado,
-        "error": error,
-        "marcas": marcas,
-    })
 
+def _procesar_importacion_diagnostico(archivo):
+    wb = openpyxl.load_workbook(archivo, data_only=True)
+    ws = wb.active
+    encabezados_requeridos = ["Marca", "Código", "Tipo", "Nombre de Falla", "Causa Probable", "Acción Recomendada", "Categoría", "Activo"]
+    encabezados_archivo = [_str_value(cell.value) for cell in ws[1]]
+    faltantes = [col for col in encabezados_requeridos if col not in encabezados_archivo]
+    if faltantes:
+        raise ValueError(f"Faltan columnas obligatorias: {', '.join(faltantes)}")
+    indices = {col: encabezados_archivo.index(col) for col in encabezados_requeridos}
+    creados = actualizados = filas_vacias = 0
+    errores = []
+
+    for idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+        marca = _str_value(row[indices["Marca"]])
+        codigo = _str_value(row[indices["Código"]])
+        tipo = _str_value(row[indices["Tipo"]])
+        nombre_falla = _str_value(row[indices["Nombre de Falla"]])
+        causa_probable = _str_value(row[indices["Causa Probable"]])
+        accion_recomendada = _str_value(row[indices["Acción Recomendada"]])
+        categoria = _str_value(row[indices["Categoría"]])
+        activo = _bool_value(row[indices["Activo"]], default=True)
+        if not marca and not codigo and not tipo and not nombre_falla:
+            filas_vacias += 1
+            continue
+        if not marca or not codigo or not tipo or not nombre_falla:
+            errores.append(f"Fila {idx}: faltan campos obligatorios.")
+            continue
+        _, creado = DiagnosticoVariador.objects.update_or_create(
+            marca=marca,
+            codigo=codigo,
+            defaults={"tipo": tipo, "nombre_falla": nombre_falla, "causa_probable": causa_probable, "accion_recomendada": accion_recomendada, "categoria": categoria, "activo": activo},
+        )
+        creados += 1 if creado else 0
+        actualizados += 0 if creado else 1
+    return {"creados": creados, "actualizados": actualizados, "filas_vacias": filas_vacias, "errores": errores}
+
+
+@login_required
 def importar_diagnostico_variador_view(request):
     resumen = None
     error = None
     mensaje_ok = None
+    form = ImportadorDiagnosticoVariadorForm(request.POST or None, request.FILES or None)
 
     if request.method == "POST":
-        form = ImportadorDiagnosticoVariadorForm(request.POST, request.FILES)
-
         if form.is_valid():
             archivo = form.cleaned_data["archivo"]
-
             if not archivo.name.lower().endswith(".xlsx"):
                 error = "Debe cargar un archivo Excel .xlsx"
-                return render(
-                    request,
-                    "cotizador/importar_diagnostico_variador.html",
-                    {
-                        "form": form,
-                        "resumen": resumen,
-                        "error": error,
-                    }
-                )
-
-            try:
-                wb = openpyxl.load_workbook(archivo, data_only=True)
-                ws = wb.active
-
-                encabezados_requeridos = [
-                    "Marca",
-                    "Código",
-                    "Tipo",
-                    "Nombre de Falla",
-                    "Causa Probable",
-                    "Acción Recomendada",
-                    "Categoría",
-                    "Activo",
-                ]
-
-                encabezados_archivo = [
-                    str(cell.value).strip() if cell.value is not None else ""
-                    for cell in ws[1]
-                ]
-
-                faltantes = [
-                    col for col in encabezados_requeridos
-                    if col not in encabezados_archivo
-                ]
-
-                if faltantes:
-                    error = f"Faltan columnas obligatorias: {', '.join(faltantes)}"
-                    return render(
-                        request,
-                        "cotizador/importar_diagnostico_variador.html",
-                        {
-                            "form": form,
-                            "resumen": resumen,
-                            "error": error,
-                        }
-                    )
-
-                indices = {
-                    col: encabezados_archivo.index(col)
-                    for col in encabezados_requeridos
-                }
-
-                creados = 0
-                actualizados = 0
-                filas_vacias = 0
-                errores = []
-
-                for idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
-                    marca = str(row[indices["Marca"]]).strip() if row[indices["Marca"]] is not None else ""
-                    codigo = str(row[indices["Código"]]).strip() if row[indices["Código"]] is not None else ""
-                    tipo = str(row[indices["Tipo"]]).strip() if row[indices["Tipo"]] is not None else ""
-                    nombre_falla = str(row[indices["Nombre de Falla"]]).strip() if row[indices["Nombre de Falla"]] is not None else ""
-                    causa_probable = str(row[indices["Causa Probable"]]).strip() if row[indices["Causa Probable"]] is not None else ""
-                    accion_recomendada = str(row[indices["Acción Recomendada"]]).strip() if row[indices["Acción Recomendada"]] is not None else ""
-                    categoria = str(row[indices["Categoría"]]).strip() if row[indices["Categoría"]] is not None else ""
-                    activo_raw = str(row[indices["Activo"]]).strip().lower() if row[indices["Activo"]] is not None else "sí"
-
-                    if not marca and not codigo and not tipo and not nombre_falla:
-                        filas_vacias += 1
-                        continue
-
-                    if not marca or not codigo or not tipo or not nombre_falla:
-                        errores.append(f"Fila {idx}: faltan campos obligatorios.")
-                        continue
-
-                    activo = activo_raw in ["si", "sí", "true", "1", "activo", "yes"]
-
-                    _, creado = DiagnosticoVariador.objects.update_or_create(
-                        marca=marca,
-                        codigo=codigo,
-                        defaults={
-                            "tipo": tipo,
-                            "nombre_falla": nombre_falla,
-                            "causa_probable": causa_probable,
-                            "accion_recomendada": accion_recomendada,
-                            "categoria": categoria,
-                            "activo": activo,
-                        }
-                    )
-
-                    if creado:
-                        creados += 1
-                    else:
-                        actualizados += 1
-
-                resumen = {
-                    "creados": creados,
-                    "actualizados": actualizados,
-                    "filas_vacias": filas_vacias,
-                    "errores": errores,
-                }
-
-                mensaje_ok = (
-                    f"Importación completada. "
-                    f"Creados: {creados} | Actualizados: {actualizados} | "
-                    f"Filas vacías: {filas_vacias}"
-                )
-
-            except Exception as exc:
-                error = f"Error procesando archivo: {exc}"
-
+            else:
+                try:
+                    resumen = _procesar_importacion_diagnostico(archivo)
+                    mensaje_ok = f"Importación completada. Creados: {resumen['creados']} | Actualizados: {resumen['actualizados']} | Filas vacías: {resumen['filas_vacias']}"
+                except Exception as exc:
+                    error = f"Error procesando archivo: {exc}"
         else:
             error = "Debe seleccionar un archivo válido."
 
-    else:
-        form = ImportadorDiagnosticoVariadorForm()
+    return render(request, "cotizador/importar_diagnostico_variador.html", {"form": form, "resumen": resumen, "error": error, "mensaje_ok": mensaje_ok})
 
-    return render(
-        request,
-        "cotizador/importar_diagnostico_variador.html",
-        {
-            "form": form,
-            "resumen": resumen,
-            "error": error,
-            "mensaje_ok": mensaje_ok,
-        }
-    )
+
+def _procesar_importacion_reparacion_camara(archivo):
+    wb = openpyxl.load_workbook(archivo, data_only=True)
+    ws = wb.active
+    encabezados_requeridos = ["Marca", "Modelo", "Tipo Reparacion", "Valor Estimado", "Tiempo Estimado", "Observacion", "Activo"]
+    encabezados_archivo = [_str_value(cell.value) for cell in ws[1]]
+    faltantes = [col for col in encabezados_requeridos if col not in encabezados_archivo]
+    if faltantes:
+        raise ValueError(f"Faltan columnas obligatorias: {', '.join(faltantes)}")
+    indices = {col: encabezados_archivo.index(col) for col in encabezados_requeridos}
+    creados = actualizados = filas_vacias = 0
+    errores = []
+    tipos_validos = {"MENOR", "MAYOR", "UPGRADE"}
+
+    for idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+        marca = _str_value(row[indices["Marca"]])
+        modelo = _str_value(row[indices["Modelo"]])
+        tipo_reparacion = _str_value(row[indices["Tipo Reparacion"]]).upper()
+        valor_estimado = _decimal_value(row[indices["Valor Estimado"]])
+        tiempo_estimado = _str_value(row[indices["Tiempo Estimado"]])
+        observacion = _str_value(row[indices["Observacion"]])
+        activo = _bool_value(row[indices["Activo"]], default=True)
+
+        if not marca and not modelo and not tipo_reparacion:
+            filas_vacias += 1
+            continue
+        if not marca or not modelo or not tipo_reparacion:
+            errores.append(f"Fila {idx}: Marca, Modelo y Tipo Reparacion son obligatorios.")
+            continue
+        if tipo_reparacion not in tipos_validos:
+            errores.append(f"Fila {idx}: Tipo Reparacion debe ser MENOR, MAYOR o UPGRADE.")
+            continue
+
+        _, creado = ReparacionCamaraTarifa.objects.update_or_create(
+            marca=marca,
+            modelo=modelo,
+            tipo_reparacion=tipo_reparacion,
+            defaults={"valor_estimado": valor_estimado, "tiempo_estimado_texto": tiempo_estimado, "observacion": observacion, "activo": activo},
+        )
+        creados += 1 if creado else 0
+        actualizados += 0 if creado else 1
+    return {"creados": creados, "actualizados": actualizados, "filas_vacias": filas_vacias, "errores": errores}
+
+
+@login_required
+def importar_reparacion_camara_view(request):
+    resumen = None
+    error = None
+    mensaje_ok = None
+    form = ImportadorReparacionCamaraForm(request.POST or None, request.FILES or None)
+
+    if request.method == "POST":
+        if form.is_valid():
+            archivo = form.cleaned_data["archivo"]
+            if not archivo.name.lower().endswith(".xlsx"):
+                error = "Debe cargar un archivo Excel .xlsx"
+            else:
+                try:
+                    resumen = _procesar_importacion_reparacion_camara(archivo)
+                    mensaje_ok = f"Importación completada. Creados: {resumen['creados']} | Actualizados: {resumen['actualizados']} | Filas vacías: {resumen['filas_vacias']}"
+                except Exception as exc:
+                    error = f"Error procesando archivo: {exc}"
+        else:
+            error = "Debe seleccionar un archivo válido."
+
+    return render(request, "cotizador/importar_reparacion_camara.html", {"form": form, "resumen": resumen, "error": error, "mensaje_ok": mensaje_ok})
+
+
+
+class CustomLoginView(LoginView):
+    template_name = "cotizador/login.html"
+    redirect_authenticated_user = True
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["mensaje_acceso"] = (
+            "Para usar los módulos de Bombas y Reparación de Cámaras debe iniciar sesión. "
+            "El diagnóstico VSD permanece público para soporte técnico rápido."
+        )
+        return context

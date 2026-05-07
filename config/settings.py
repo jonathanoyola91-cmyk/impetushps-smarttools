@@ -53,9 +53,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
+
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -146,3 +145,12 @@ COTIZADOR_EMAIL_COPIA = "su_correo@empresa.com"
 WHATSAPP_SOPORTE = "573173315060"
 
 # Render deploy refresh
+
+LOGIN_URL = "/login/"
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/"
+
+# Correo donde llegan notificaciones comerciales y alertas VSD
+IMPETUS_NOTIFICACION_COMERCIAL = "director.comercial@impetushps.co"
+COTIZADOR_EMAIL_COPIA = "director.comercial@impetushps.co"
+

@@ -128,16 +128,8 @@ class MarcaMotor(models.Model):
 
 
 class OpcionMotor(models.Model):
-    equipo = models.ForeignKey(
-        EquipoBase,
-        on_delete=models.CASCADE,
-        related_name="opciones_motor",
-    )
-    marca = models.ForeignKey(
-        MarcaMotor,
-        on_delete=models.CASCADE,
-        related_name="opciones",
-    )
+    equipo = models.ForeignKey(EquipoBase, on_delete=models.CASCADE, related_name="opciones_motor")
+    marca = models.ForeignKey(MarcaMotor, on_delete=models.CASCADE, related_name="opciones")
     potencia_hp = models.DecimalField(max_digits=10, decimal_places=2)
     voltaje = models.CharField(max_length=50, blank=True, default="")
     precio_adicional = models.DecimalField(max_digits=14, decimal_places=2, default=0)
@@ -188,11 +180,7 @@ class Variador(models.Model):
 class Conexion(models.Model):
     TIPO_SUCCION = "SUCCION"
     TIPO_DESCARGA = "DESCARGA"
-
-    TIPO_CHOICES = [
-        (TIPO_SUCCION, "Succión"),
-        (TIPO_DESCARGA, "Descarga"),
-    ]
+    TIPO_CHOICES = [(TIPO_SUCCION, "Succión"), (TIPO_DESCARGA, "Descarga")]
 
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
     diametro = models.CharField(max_length=20)
@@ -223,58 +211,16 @@ class SolicitudCotizacion(models.Model):
     caudal = models.DecimalField(max_digits=12, decimal_places=2)
     dp_calculada = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
-    equipo_recomendado = models.ForeignKey(
-        EquipoBase,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="solicitudes",
-    )
-    punto_recomendado = models.ForeignKey(
-        CurvaOperacion,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="solicitudes",
-    )
-
-    motor = models.ForeignKey(
-        OpcionMotor,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-    )
-    acople = models.ForeignKey(
-        Acople,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-    )
-    variador = models.ForeignKey(
-        Variador,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-    )
-
-    conexion_succion = models.ForeignKey(
-        Conexion,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="solicitudes_succion",
-    )
-    conexion_descarga = models.ForeignKey(
-        Conexion,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="solicitudes_descarga",
-    )
+    equipo_recomendado = models.ForeignKey(EquipoBase, on_delete=models.SET_NULL, null=True, blank=True, related_name="solicitudes")
+    punto_recomendado = models.ForeignKey(CurvaOperacion, on_delete=models.SET_NULL, null=True, blank=True, related_name="solicitudes")
+    motor = models.ForeignKey(OpcionMotor, on_delete=models.SET_NULL, null=True, blank=True)
+    acople = models.ForeignKey(Acople, on_delete=models.SET_NULL, null=True, blank=True)
+    variador = models.ForeignKey(Variador, on_delete=models.SET_NULL, null=True, blank=True)
+    conexion_succion = models.ForeignKey(Conexion, on_delete=models.SET_NULL, null=True, blank=True, related_name="solicitudes_succion")
+    conexion_descarga = models.ForeignKey(Conexion, on_delete=models.SET_NULL, null=True, blank=True, related_name="solicitudes_descarga")
 
     valor_estimado = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     tiempo_entrega_estimado_dias = models.PositiveIntegerField(default=0)
-
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -290,21 +236,14 @@ class ReparacionCamaraTarifa(models.Model):
     TIPO_MENOR = "MENOR"
     TIPO_MAYOR = "MAYOR"
     TIPO_UPGRADE = "UPGRADE"
-
-    TIPO_CHOICES = [
-        (TIPO_MENOR, "Menor"),
-        (TIPO_MAYOR, "Mayor"),
-        (TIPO_UPGRADE, "Upgrade"),
-    ]
+    TIPO_CHOICES = [(TIPO_MENOR, "Menor"), (TIPO_MAYOR, "Mayor"), (TIPO_UPGRADE, "Upgrade")]
 
     marca = models.CharField(max_length=100)
     modelo = models.CharField(max_length=100)
     tipo_reparacion = models.CharField(max_length=20, choices=TIPO_CHOICES)
-
     valor_estimado = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     tiempo_estimado_texto = models.CharField(max_length=100, blank=True, default="")
     observacion = models.TextField(blank=True, default="")
-
     activo = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -324,22 +263,16 @@ class SolicitudReparacionCamara(models.Model):
     correo = models.EmailField()
     telefono = models.CharField(max_length=30, blank=True, default="")
     nombre_proyecto = models.CharField(max_length=150, blank=True, default="")
-
     marca = models.CharField(max_length=100)
     modelo = models.CharField(max_length=100)
     serial = models.CharField(max_length=100, blank=True, default="")
-    tipo_reparacion = models.CharField(
-        max_length=20,
-        choices=ReparacionCamaraTarifa.TIPO_CHOICES,
-    )
-
+    tipo_reparacion = models.CharField(max_length=20, choices=ReparacionCamaraTarifa.TIPO_CHOICES)
     observaciones_cliente = models.TextField(blank=True, default="")
     observacion_tecnica = models.TextField(blank=True, default="")
     tiempo_estimado_texto = models.CharField(max_length=100, blank=True, default="")
     valor_estimado = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     solicito_precio = models.BooleanField(default=False)
     fecha_solicitud_precio = models.DateTimeField(null=True, blank=True)
-
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -349,6 +282,7 @@ class SolicitudReparacionCamara(models.Model):
 
     def __str__(self):
         return f"RC-{self.id:04d} - {self.empresa}"
+
 
 class DiagnosticoVariador(models.Model):
     marca = models.CharField(max_length=100)
@@ -368,3 +302,30 @@ class DiagnosticoVariador(models.Model):
 
     def __str__(self):
         return f"{self.marca} - {self.codigo}"
+
+
+class ConsultaDiagnosticoVariadorLog(models.Model):
+    marca = models.CharField(max_length=100, blank=True, default="")
+    codigo = models.CharField(max_length=100, blank=True, default="")
+    encontrado = models.BooleanField(default=False)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True, default="")
+    session_key = models.CharField(max_length=80, blank=True, default="")
+    referer = models.TextField(blank=True, default="")
+    path = models.CharField(max_length=255, blank=True, default="")
+    es_sospechoso = models.BooleanField(default=False)
+    notificacion_enviada = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Log consulta VSD"
+        verbose_name_plural = "Logs consultas VSD"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["ip_address", "created_at"]),
+            models.Index(fields=["session_key", "created_at"]),
+            models.Index(fields=["es_sospechoso", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.ip_address or 'sin-ip'} - {self.marca} {self.codigo}"
