@@ -97,30 +97,55 @@ body{
 }
 
 @media(max-width:900px){
+
+    .topnav{
+        position:sticky;
+        top:0;
+        z-index:999;
+        backdrop-filter:blur(12px);
+    }
+
     .topnav-inner{
         padding:12px 16px;
+        min-height:auto;
         flex-direction:column;
-        align-items:flex-start;
-    }
-
-    .brand-logo{
-        height:40px;
-    }
-
-    .brand-title{
-        font-size:18px;
-    }
-
-    .brand-sub{
-        font-size:12px;
-    }
-
-    .nav-links{
+        align-items:center;
         gap:14px;
     }
 
+    .brand-link{
+        gap:10px;
+    }
+
+    .brand-logo{
+        height:38px;
+    }
+
+    .brand-title{
+        font-size:20px;
+    }
+
+    .brand-sub{
+        font-size:11px;
+    }
+
+    .nav-links{
+        width:100%;
+        display:grid;
+        grid-template-columns:1fr 1fr 1fr;
+        gap:8px;
+    }
+
     .nav-links a{
-        font-size:14px;
+        font-size:12px;
+        padding:10px 8px;
+        text-align:center;
+        border-radius:12px;
+        background:rgba(255,255,255,.06);
+    }
+
+    .page-wrap{
+        padding:16px 14px 40px;
     }
 }
 
