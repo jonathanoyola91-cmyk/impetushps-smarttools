@@ -31,7 +31,11 @@ class Command(BaseCommand):
             raise CommandError(f"No existe el archivo: {excel_path}")
 
         try:
-            wb = load_workbook(excel_path, data_only=True)
+            wb = load_workbook(
+                excel_path,
+                data_only=True,
+                read_only=True
+            )
         except Exception as exc:
             raise CommandError(f"No se pudo abrir el Excel: {exc}") from exc
 
