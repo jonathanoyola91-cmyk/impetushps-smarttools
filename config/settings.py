@@ -146,7 +146,7 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 
 EMAIL_HOST_USER = "director.comercial@impetushps.co"
-EMAIL_HOST_PASSWORD = "LA_CONTRASEÑA_REAL_DEL_CORREO"
+EMAIL_HOST_PASSWORD = "Operacion25*"
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 COTIZADOR_EMAIL_COPIA = "director.comercial@impetushps.co"
