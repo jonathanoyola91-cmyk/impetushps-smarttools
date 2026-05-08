@@ -18,14 +18,14 @@ class Command(BaseCommand):
             help="Ruta del archivo Excel a importar",
         )
         parser.add_argument(
-            "--replace",
+            "--limpiar",
             action="store_true",
             help="Borra los registros existentes antes de importar",
         )
 
     def handle(self, *args, **options):
         excel_path = Path(options["excel_path"])
-        replace = options["replace"]
+        replace = options["limpiar"]
 
         if not excel_path.exists():
             raise CommandError(f"No existe el archivo: {excel_path}")
