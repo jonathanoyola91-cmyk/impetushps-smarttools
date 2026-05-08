@@ -1,3 +1,6 @@
+from django.contrib.auth.models import User
+from django.core.mail import send_mail
+from django.conf import settings
 from django.contrib import admin
 from .models import ReparacionCamaraTarifa, SolicitudReparacionCamara
 
@@ -153,3 +156,42 @@ class SolicitudReparacionCamaraAdmin(admin.ModelAdmin):
     )
     search_fields = ("empresa", "contacto", "marca", "modelo", "serial")
     list_filter = ("tipo_reparacion", "created_at")
+
+@admin.action(description="Activar usuarios seleccionados y notificar")
+def activar_usuarios(modeladmin, request, queryset):
+
+    for user in queryset:
+        user.is_active = True
+        user.save()
+
+        if user.email:
+            send_mail(
+                "Cuenta aprobada - IMPETUS Smart Tools",
+                f"""
+Hola {user.first_name or user.username},
+
+Su cuenta fue aprobada correctamente.
+
+Ya puede ingresar a IMPETUS Smart Tools.
+
+Usuario:
+{user.username}
+
+URL:
+https://SU-DOMINIO/login/
+
+IMPETUS HPS
+""",
+                settings.DEFAULT_FROM_EMAIL,
+                [user.email],
+                fail_silently=True,
+            )
+
+
+from django.contrib.auth.admin import UserAdmin
+
+admin.site.unregister(User)
+
+@admin.register(User)
+class CustomUserAdmin(UserAdmin):
+    actions = [activar_usuarios]

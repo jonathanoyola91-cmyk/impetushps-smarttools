@@ -75,70 +75,19 @@
     </style>
 </head>
 <body>
-    .topnav{
-    background:#111827;
-    color:#fff;
-    padding:14px 22px;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    gap:16px;
-    flex-wrap:wrap;
-    box-shadow:0 6px 16px rgba(0,0,0,.12);
-}
-
-.brand{
-    display:flex;
-    align-items:center;
-}
-
-.brand-link{
-    text-decoration:none;
-    color:#fff;
-    display:flex;
-    align-items:center;
-    gap:10px;
-}
-
-.brand-mark{
-    background:#fff;
-    color:#111827;
-    font-weight:bold;
-    font-size:12px;
-    padding:6px 10px;
-    border-radius:999px;
-    letter-spacing:.5px;
-}
-
-.brand-name{
-    font-size:18px;
-    font-weight:bold;
-    letter-spacing:.3px;
-}
-
-.nav-links{
-    display:flex;
-    gap:12px;
-    flex-wrap:wrap;
-}
-
-.nav-links a{
-    color:#fff;
-    text-decoration:none;
-    font-weight:bold;
-    padding:9px 13px;
-    border-radius:8px;
-    transition:.2s ease;
-}
-
-.nav-links a:hover{
-    background:rgba(255,255,255,.12);
-}
+    
 
     <div class="wrap">
         <div class="card">
             <h1 class="ok">Cotización procesada</h1>
-            <p class="msg">{{ mensaje }}</p>
+            <p class="msg">
+                La solicitud de cotización presupuestal
+                <strong>{{ numero_cotizacion }}</strong>
+                fue enviada correctamente.
+
+                En breve momento recibirá la cotización en el correo:
+                <strong>{{ solicitud.correo }}</strong>.
+            </p>
 
             {% if es_modo_prueba %}
                 <div class="alert">

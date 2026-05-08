@@ -158,6 +158,13 @@
             <button type="submit" class="btn-login">
                 Ingresar
             </button>
+            
+            <div style="margin-top:14px;text-align:center;">
+                <a href="{% url 'password_reset' %}"
+                   style="color:#1d4ed8;font-weight:700;text-decoration:none;">
+                    ¿Olvidó su contraseña?
+                </a>
+            </div>
 
             <a href="{% url 'crear_cuenta' %}" class="btn-register">
                 Crear cuenta
