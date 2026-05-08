@@ -29,7 +29,77 @@ from .models import (
 from .pdf_utils import generar_pdf_cotizacion
 from .services import seleccionar_mejor_punto, calcular_dp
 
+from django.contrib import messages
+from django.contrib.auth.models import User
+from django.core.mail import send_mail
+from django.shortcuts import render, redirect
+from django.conf import settings
 
+from .forms import SolicitudCuentaForm
+
+from django.contrib.auth import logout
+from django.shortcuts import redirect
+
+def logout_view(request):
+    logout(request)
+    return redirect("home")
+
+def crear_cuenta(request):
+    if request.method == "POST":
+        form = SolicitudCuentaForm(request.POST)
+
+        if form.is_valid():
+            nombre = form.cleaned_data["nombre"]
+            empresa = form.cleaned_data["empresa"]
+            email = form.cleaned_data["email"]
+            username = form.cleaned_data["username"]
+            password = form.cleaned_data["password"]
+
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                first_name=nombre,
+                is_active=False,
+            )
+
+            asunto = "Nueva solicitud de acceso - IMPETUS Smart Tools"
+
+            mensaje = f"""
+Nueva solicitud de acceso registrada.
+
+Nombre: {nombre}
+Empresa: {empresa}
+Correo: {email}
+Usuario: {username}
+
+El usuario quedó pendiente de autorización.
+Debe activarse manualmente desde el panel administrador.
+"""
+
+            send_mail(
+                asunto,
+                mensaje,
+                settings.DEFAULT_FROM_EMAIL,
+                ["director.comercial@impetushps.co"],
+                fail_silently=True,
+            )
+
+            messages.success(
+                request,
+                "Solicitud enviada correctamente. Su cuenta será revisada por IMPETUS."
+            )
+
+            return redirect("login")
+
+    else:
+        form = SolicitudCuentaForm()
+
+    return render(
+        request,
+        "cotizador/crear_cuenta.html",
+        {"form": form}
+    )
 VSD_MONITOR_WINDOW_MINUTES = 60
 VSD_MONITOR_IP_THRESHOLD = 25
 VSD_MONITOR_SESSION_THRESHOLD = 18
@@ -102,7 +172,6 @@ def home_view(request):
     return render(request, "cotizador/home.html")
 
 
-@login_required
 def reparacion_camara_view(request):
     resultado = None
     error = None
@@ -118,11 +187,24 @@ def reparacion_camara_view(request):
         )
 
     if request.method == "POST":
+        if not request.user.is_authenticated:
+            messages.warning(
+                request,
+                "Debe crear una cuenta o iniciar sesión para calcular la reparación."
+            )
+            return redirect("crear_cuenta")
+
         try:
-            empresa = request.POST.get("empresa", "").strip()
-            contacto = request.POST.get("contacto", "").strip()
-            correo = request.POST.get("correo", "").strip()
-            telefono = request.POST.get("telefono", "").strip()
+            if request.user.is_authenticated:
+                empresa = request.POST.get("empresa", "").strip() or request.user.first_name or request.user.username
+                contacto = request.POST.get("contacto", "").strip() or request.user.get_full_name() or request.user.username
+                correo = request.POST.get("correo", "").strip() or request.user.email
+                telefono = request.POST.get("telefono", "").strip()
+            else:
+                empresa = request.POST.get("empresa", "").strip()
+                contacto = request.POST.get("contacto", "").strip()
+                correo = request.POST.get("correo", "").strip()
+                telefono = request.POST.get("telefono", "").strip()
             nombre_proyecto = request.POST.get("nombre_proyecto", "").strip()
             marca = request.POST.get("marca", "").strip()
             modelo = request.POST.get("modelo", "").strip()
@@ -131,7 +213,7 @@ def reparacion_camara_view(request):
             observaciones_cliente = request.POST.get("observaciones_cliente", "").strip()
 
             if not empresa or not contacto or not correo:
-                error = "Debe ingresar empresa, contacto y correo."
+                error = "No fue posible identificar empresa, contacto o correo del usuario."
             else:
                 tarifa = ReparacionCamaraTarifa.objects.filter(
                     activo=True,
@@ -226,53 +308,72 @@ def enviar_cotizacion_email(request, solicitud_id):
     })
 
 
-@login_required
 def cotizador_view(request):
     resultado = None
     error = None
     solicitud_id = None
 
     if request.method == "POST":
+        if not request.user.is_authenticated:
+            messages.warning(
+                request,
+                "Debe crear una cuenta o iniciar sesión para calcular la cotización."
+            )
+            return redirect("crear_cuenta")
+
         try:
-            empresa = request.POST.get("empresa", "").strip()
-            contacto = request.POST.get("contacto", "").strip()
-            correo = request.POST.get("correo", "").strip()
+            empresa = request.POST.get("empresa", "").strip() or request.user.first_name or request.user.username
+            contacto = request.POST.get("contacto", "").strip() or request.user.get_full_name() or request.user.username
+            correo = request.POST.get("correo", "").strip() or request.user.email or "director.comercial@impetushps.co"
             telefono = request.POST.get("telefono", "").strip()
+            
             nombre_proyecto = request.POST.get("nombre_proyecto", "").strip()
+            marca = request.POST.get("marca", "").strip()
+            modelo = request.POST.get("modelo", "").strip()
+            serial = request.POST.get("serial", "").strip()
+            tipo_reparacion = request.POST.get("tipo_reparacion", "").strip()
             observaciones_cliente = request.POST.get("observaciones_cliente", "").strip()
-            caudal = Decimal(request.POST.get("caudal", "0"))
-            ps = Decimal(request.POST.get("presion_succion", "0"))
-            pd = Decimal(request.POST.get("presion_descarga", "0"))
+           
 
-            resultado = seleccionar_mejor_punto(caudal=caudal, presion_succion=ps, presion_descarga=pd)
-
-            if not resultado:
-                error = "No se encontró un equipo compatible."
+            if not empresa or not contacto or not correo:
+                error = "No fue posible identificar empresa, contacto o correo del usuario."
             else:
-                dp = calcular_dp(ps, pd)
-                solicitud = SolicitudCotizacion.objects.create(
-                    empresa=empresa,
-                    contacto=contacto,
-                    correo=correo,
-                    telefono=telefono,
-                    nombre_proyecto=nombre_proyecto,
-                    observaciones_cliente=observaciones_cliente,
-                    presion_succion=ps,
-                    presion_descarga=pd,
-                    caudal=caudal,
-                    dp_calculada=dp,
-                    equipo_recomendado=resultado["equipo"],
-                    punto_recomendado=resultado["punto"],
-                    valor_estimado=resultado["equipo"].precio_base or 0,
-                    tiempo_entrega_estimado_dias=resultado["equipo"].tiempo_base_dias or 0,
-                )
-                solicitud_id = solicitud.id
-                try:
-                    notificar_nueva_cotizacion_bomba(solicitud)
-                except Exception as exc:
-                    messages.warning(request, f"Cotización creada, pero no se pudo enviar notificación: {exc}")
+                tarifa = ReparacionCamaraTarifa.objects.filter(
+                    activo=True,
+                    marca=marca,
+                    modelo=modelo,
+                    tipo_reparacion=tipo_reparacion,
+                ).first()
+
+                if not tarifa:
+                    error = "No se encontró configuración para esa selección."
+                else:
+                    solicitud = SolicitudReparacionCamara.objects.create(
+                        empresa=empresa,
+                        contacto=contacto,
+                        correo=correo,
+                        telefono=telefono,
+                        nombre_proyecto=nombre_proyecto,
+                        marca=marca,
+                        modelo=modelo,
+                        serial=serial,
+                        tipo_reparacion=tipo_reparacion,
+                        observaciones_cliente=observaciones_cliente,
+                        observacion_tecnica=tarifa.observacion,
+                        tiempo_estimado_texto=tarifa.tiempo_estimado_texto,
+                        valor_estimado=tarifa.valor_estimado,
+                    )
+
+                    resultado = solicitud
+                    solicitud_id = solicitud.id
+
+                    try:
+                        notificar_nueva_reparacion_camara(solicitud)
+                    except Exception as exc:
+                        messages.warning(request, f"Solicitud creada, pero no se pudo enviar notificación: {exc}")
+
         except Exception as exc:
-            error = f"Error en los datos ingresados: {exc}"
+            error = f"Error: {exc}"
 
     return render(request, "cotizador/formulario.html", {
         "resultado": resultado,

@@ -139,9 +139,20 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-DEFAULT_FROM_EMAIL = "no-reply@impetushps.com"
-COTIZADOR_EMAIL_COPIA = "su_correo@empresa.com"
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+
+EMAIL_HOST = "smtp.hostinger.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+EMAIL_HOST_USER = "director.comercial@impetushps.co"
+EMAIL_HOST_PASSWORD = "AQUI_LA_CLAVE_DEL_CORREO"
+
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+COTIZADOR_EMAIL_COPIA = "director.comercial@impetushps.co"
+IMPETUS_NOTIFICACION_COMERCIAL = "director.comercial@impetushps.co"
+
 WHATSAPP_SOPORTE = "573173315060"
 
 # Render deploy refresh

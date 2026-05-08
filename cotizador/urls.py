@@ -1,4 +1,4 @@
-from django.contrib.auth.views import LogoutView
+from . import views
 from django.urls import path
 from .views import (
     home_view,
@@ -16,7 +16,7 @@ from .views import (
 
 urlpatterns = [
     path("login/", CustomLoginView.as_view(), name="login"),
-    path("logout/", LogoutView.as_view(), name="logout"),
+    path("logout/", views.logout_view, name="logout"),
     path("", home_view, name="home"),
     path("cotizador-bombas/", cotizador_view, name="cotizador"),
     path("reparacion-camara/", reparacion_camara_view, name="reparacion_camara"),
@@ -27,4 +27,5 @@ urlpatterns = [
     path("solicitar-precio-reparacion/<int:solicitud_id>/", solicitar_precio_reparacion, name="solicitar_precio_reparacion"),
     path("diagnostico-variador/", diagnostico_variador_view, name="diagnostico_variador"),
     path("diagnostico-variador/importar/", importar_diagnostico_variador_view, name="importar_diagnostico_variador"),
+    path("crear-cuenta/", views.crear_cuenta, name="crear_cuenta"),
 ]

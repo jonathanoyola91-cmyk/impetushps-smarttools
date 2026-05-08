@@ -86,6 +86,28 @@
     cursor:pointer;
     font-size:15px;
 }
+
+.btn-register{
+    width:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin-top:12px;
+    padding:14px 18px;
+    border-radius:13px;
+    border:1px solid #111827;
+    background:#fff;
+    color:#111827;
+    font-weight:900;
+    font-size:15px;
+    text-decoration:none;
+    transition:.2s ease;
+}
+
+.btn-register:hover{
+    background:#111827;
+    color:#fff;
+}
 .login-contact{
     margin-top:20px;
     padding-top:18px;
@@ -112,14 +134,10 @@
         <h1>Iniciar sesión</h1>
         <p>
             Para usar los módulos de cotización de bombas y reparación de cámaras,
-            debe ingresar con un usuario autorizado de IMPETUS.
+            debe ingresar con un usuario autorizado de IMPETUS. Si no tiene cuenta, dé clic en Crear cuenta. 
         </p>
 
-        <div class="login-info">
-            <strong>Nota:</strong> el diagnóstico VSD continúa público para soporte rápido.
-            Bombas, cámaras, historial e importadores quedan protegidos para evitar que terceros
-            consulten información técnica o comercial sensible.
-        </div>
+        
 
         {% if form.errors %}
             <div class="login-error">
@@ -137,11 +155,17 @@
             <label for="id_password">Contraseña</label>
             {{ form.password }}
 
-            <button type="submit" class="btn-login">Ingresar</button>
+            <button type="submit" class="btn-login">
+                Ingresar
+            </button>
+
+            <a href="{% url 'crear_cuenta' %}" class="btn-register">
+                Crear cuenta
+            </a>
         </form>
 
         <div class="login-contact">
-            Si requiere acceso, solicítelo al área comercial:<br>
+            Si requiere soporte técnico solicítelo al área comercial:<br>
             <strong>director.comercial@impetushps.co</strong>
         </div>
     </div>

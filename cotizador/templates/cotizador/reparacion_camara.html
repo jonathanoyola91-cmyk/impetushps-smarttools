@@ -1,12 +1,12 @@
 {% extends "cotizador/base.html" %}
 
-{% block title %}Reparación Cámara de Empuje{% endblock %}
+{% block title %}Reparación Cámara de Empuje | IMPETUS Smart Tools{% endblock %}
 
 {% block extra_css %}
 <style>
 .wrap{
     width:min(100% - 32px, 1080px);
-    margin:24px auto 46px;
+    margin:0 auto 46px;
 }
 
 .page-head{
@@ -32,7 +32,6 @@
     display:grid;
     grid-template-columns:1fr 1fr;
     gap:24px;
-    
 }
 
 .card{
@@ -54,6 +53,28 @@
     color:#6b7280;
     line-height:1.6;
     font-size:14px;
+}
+
+.public-note{
+    background:#eff6ff;
+    border:1px solid #bfdbfe;
+    color:#1e3a8a;
+    border-radius:14px;
+    padding:13px 15px;
+    font-size:14px;
+    line-height:1.55;
+    margin-bottom:18px;
+}
+
+.auth-note{
+    background:#ecfdf5;
+    border:1px solid #bbf7d0;
+    color:#166534;
+    border-radius:14px;
+    padding:13px 15px;
+    font-size:14px;
+    line-height:1.55;
+    margin-bottom:18px;
 }
 
 .form-grid{
@@ -103,7 +124,9 @@ textarea{
 }
 
 .btn{
-    display:inline-block;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
     border:none;
     border-radius:10px;
     padding:11px 16px;
@@ -121,6 +144,27 @@ textarea{
 
 .btn-primary:hover{
     opacity:.95;
+}
+
+.btn-primary:disabled{
+    opacity:.45;
+    cursor:not-allowed;
+}
+
+.btn-outline{
+    background:#fff;
+    color:#111827;
+    border:1px solid #111827;
+}
+
+.btn-outline:hover{
+    background:#111827;
+    color:#fff;
+}
+
+.btn-secondary{
+    background:#e5e7eb;
+    color:#111827;
 }
 
 .btn-warning{
@@ -192,10 +236,10 @@ textarea{
     color:#6b7280;
 }
 
-@media (max-width: 980px){
+@media (max-width:980px){
     .wrap{
         width:min(100% - 24px, 100%);
-        margin:20px auto 40px;
+        margin:0 auto 40px;
     }
 
     .grid{
@@ -203,7 +247,7 @@ textarea{
     }
 }
 
-@media (max-width: 768px){
+@media (max-width:768px){
     .form-grid{
         grid-template-columns:1fr;
     }
@@ -245,30 +289,44 @@ textarea{
                 una orientación presupuestal inicial.
             </p>
 
+            {% if request.user.is_authenticated %}
+                <div class="auth-note">
+                    Sesión iniciada como <strong>{{ request.user.username }}</strong>.
+                    Los datos comerciales se tomarán automáticamente de su cuenta.
+                </div>
+            {% else %}
+                <div class="public-note">
+                    Puede revisar el formulario y conocer la información requerida.
+                    Para calcular la reparación y ver el resultado debe crear una cuenta o iniciar sesión.
+                </div>
+            {% endif %}
+
             <form method="post">
                 {% csrf_token %}
 
                 <div class="form-grid">
 
-                    <div>
-                        <label>Empresa</label>
-                        <input type="text" name="empresa" required>
-                    </div>
+                    {% if not request.user.is_authenticated %}
+                        <div>
+                            <label>Empresa</label>
+                            <input type="text" name="empresa">
+                        </div>
 
-                    <div>
-                        <label>Contacto</label>
-                        <input type="text" name="contacto" required>
-                    </div>
+                        <div>
+                            <label>Contacto</label>
+                            <input type="text" name="contacto">
+                        </div>
 
-                    <div>
-                        <label>Teléfono</label>
-                        <input type="text" name="telefono">
-                    </div>
+                        <div>
+                            <label>Teléfono</label>
+                            <input type="text" name="telefono">
+                        </div>
 
-                    <div>
-                        <label>Correo</label>
-                        <input type="email" name="correo" required>
-                    </div>
+                        <div>
+                            <label>Correo</label>
+                            <input type="email" name="correo">
+                        </div>
+                    {% endif %}
 
                     <div class="full">
                         <label>Proyecto / Pozo</label>
@@ -318,7 +376,21 @@ textarea{
                 </div>
 
                 <div class="actions">
-                    <button class="btn btn-primary" type="submit">Calcular reparación</button>
+                    {% if request.user.is_authenticated %}
+                        <button class="btn btn-primary" type="submit">
+                            Calcular reparación
+                        </button>
+                    {% else %}
+                        <button class="btn btn-primary" type="button" disabled>
+                            Calcular reparación
+                        </button>
+                        <a class="btn btn-outline" href="{% url 'crear_cuenta' %}">
+                            Crear cuenta
+                        </a>
+                        <a class="btn btn-secondary" href="{% url 'login' %}">
+                            Iniciar sesión
+                        </a>
+                    {% endif %}
                 </div>
             </form>
 
@@ -330,7 +402,7 @@ textarea{
         <div class="card">
             <h2>Resultado</h2>
 
-            {% if resultado %}
+            {% if resultado and request.user.is_authenticated %}
                 <span class="result-tag">Solicitud registrada</span>
 
                 <div class="info-grid">
@@ -381,7 +453,7 @@ textarea{
             {% else %}
                 <div class="placeholder-box">
                     Aquí verá el tiempo estimado, observación técnica y la opción
-                    de solicitar valor comercial con asesor una vez se procese la consulta.
+                    de solicitar valor comercial con asesor después de iniciar sesión y calcular la reparación.
                 </div>
             {% endif %}
         </div>

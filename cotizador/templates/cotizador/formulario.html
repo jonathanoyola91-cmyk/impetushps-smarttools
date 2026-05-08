@@ -1,138 +1,72 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>Cotizador Presupuestal</title>
-    <style>
-        *{box-sizing:border-box}
-        body{
-            margin:0;
-            font-family:Arial, sans-serif;
-            background:#f4f7fb;
-            color:#1f2937;
-        }
+{% extends "cotizador/base.html" %}
 
-.topnav{
-    background:#111827;
-    color:#fff;
-    padding:14px 22px;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    gap:16px;
-    flex-wrap:wrap;
-    box-shadow:0 6px 16px rgba(0,0,0,.12);
+{% block title %}Cotizador Presupuestal | IMPETUS Smart Tools{% endblock %}
+
+{% block extra_css %}
+<style>
+.wrap{
+    width:min(100% - 32px, 1280px);
+    margin:0 auto 46px;
 }
 
-.brand{
-    display:flex;
-    align-items:center;
+.page-head{
+    margin:0 0 20px;
 }
 
-.brand-link{
-    text-decoration:none;
-    color:#fff;
-    display:flex;
-    align-items:center;
-    gap:10px;
-}
-
-.brand-mark{
-    background:#fff;
+.page-head h1{
+    margin:0 0 8px;
+    font-size:32px;
+    line-height:1.15;
     color:#111827;
-    font-weight:bold;
-    font-size:12px;
-    padding:6px 10px;
-    border-radius:999px;
-    letter-spacing:.5px;
 }
 
-.brand-name{
-    font-size:18px;
-    font-weight:bold;
-    letter-spacing:.3px;
+.page-head p{
+    margin:0;
+    color:#6b7280;
+    line-height:1.6;
+    font-size:16px;
 }
 
-.nav-links{
-    display:flex;
-    gap:12px;
-    flex-wrap:wrap;
+.grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:24px;
 }
 
-.nav-links a{
-    color:#fff;
-    text-decoration:none;
-    font-weight:bold;
-    padding:9px 13px;
-    border-radius:8px;
-    transition:.2s ease;
+.card{
+    background:#fff;
+    border:1px solid #e5e7eb;
+    border-radius:18px;
+    box-shadow:0 10px 30px rgba(0,0,0,.06);
+    padding:24px;
 }
 
-.nav-links a:hover{
-    background:rgba(255,255,255,.12);
+.card h2{
+    margin:0 0 16px;
+    font-size:22px;
+    color:#111827;
 }
-        .wrap{
-            max-width:1780px;
-            margin:0 auto;
-            padding:30px 20px 50px;
-        }
-        .title{
-            margin-bottom:24px;
-        }
-        .title h1{
-            margin:0 0 8px;
-            font-size:32px;
-        }
-        .title p{
-            margin:0;
-            color:#6b7280;
-        }
-        .grid{
-            display:grid;
-            grid-template-columns: 1fr 1fr;
-            gap:24px;
-        }
-        .card{
-            background:#fff;
-            border:1px solid #e5e7eb;
-            border-radius:16px;
-            box-shadow:0 10px 30px rgba(0,0,0,.06);
-            padding:24px;
-        }
-        .card h2{
-            margin-top:0;
-            font-size:22px;
-        }
-        .section-title{
-            margin:18px 0 12px;
-            font-size:16px;
-            font-weight:bold;
-            color:#111827;
-        }
-        label{
-            display:block;
-            margin-bottom:6px;
-            font-weight:bold;
-            font-size:14px;
-        }
-        input{
-            width:100%;
-            padding:12px 14px;
-            border:1px solid #d1d5db;
-            border-radius:10px;
-            font-size:14px;
-            margin-bottom:14px;
-        }
 
-        textarea,
-select{
-    width:100%;
-    padding:12px 14px;
-    border:1px solid #d1d5db;
-    border-radius:10px;
+.public-note{
+    background:#eff6ff;
+    border:1px solid #bfdbfe;
+    color:#1e3a8a;
+    border-radius:14px;
+    padding:13px 15px;
     font-size:14px;
-    margin-bottom:14px;
-    resize:vertical;
+    line-height:1.55;
+    margin-bottom:18px;
+}
+
+.auth-note{
+    background:#ecfdf5;
+    border:1px solid #bbf7d0;
+    color:#166534;
+    border-radius:14px;
+    padding:13px 15px;
+    font-size:14px;
+    line-height:1.55;
+    margin-bottom:18px;
 }
 
 .form-grid{
@@ -141,253 +75,371 @@ select{
     gap:14px 16px;
 }
 
-@media (max-width:900px){
-    .form-grid{
+.form-grid .full{
+    grid-column:1 / 3;
+}
+
+label{
+    display:block;
+    margin-bottom:6px;
+    font-weight:bold;
+    font-size:13px;
+    color:#111827;
+}
+
+input, textarea, select{
+    width:100%;
+    padding:11px 12px;
+    border:1px solid #d1d5db;
+    border-radius:10px;
+    font-size:14px;
+    margin-bottom:2px;
+    background:#fff;
+}
+
+input:focus, textarea:focus, select:focus{
+    outline:none;
+    border-color:#111827;
+    box-shadow:0 0 0 3px rgba(17,24,39,.08);
+}
+
+textarea{
+    resize:vertical;
+    min-height:92px;
+}
+
+.actions{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+    margin-top:18px;
+}
+
+.btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border:none;
+    border-radius:10px;
+    padding:12px 18px;
+    font-weight:bold;
+    cursor:pointer;
+    text-decoration:none;
+    transition:.2s ease;
+    font-size:14px;
+}
+
+.btn-primary{
+    background:#111827;
+    color:#fff;
+}
+
+.btn-primary:hover{
+    opacity:.95;
+}
+
+.btn-primary:disabled{
+    opacity:.45;
+    cursor:not-allowed;
+}
+
+.btn-outline{
+    background:#fff;
+    color:#111827;
+    border:1px solid #111827;
+}
+
+.btn-outline:hover{
+    background:#111827;
+    color:#fff;
+}
+
+.btn-secondary{
+    background:#e5e7eb;
+    color:#111827;
+}
+
+.btn-success{
+    background:#0f766e;
+    color:#fff;
+}
+
+.error{
+    margin-top:16px;
+    background:#fef2f2;
+    color:#991b1b;
+    border:1px solid #fecaca;
+    padding:12px 14px;
+    border-radius:12px;
+}
+
+.placeholder-box{
+    background:#f9fafb;
+    border:1px dashed #d1d5db;
+    border-radius:14px;
+    padding:16px;
+    color:#6b7280;
+    line-height:1.6;
+    font-size:14px;
+}
+
+.info-grid{
+    display:grid;
+    grid-template-columns:180px 1fr;
+    gap:10px 16px;
+    margin-top:16px;
+    font-size:14px;
+}
+
+.info-label{
+    font-weight:bold;
+    color:#111827;
+}
+
+.section-title{
+    margin:18px 0 12px;
+    font-size:16px;
+    font-weight:bold;
+    color:#111827;
+}
+
+.curve-box{
+    margin-top:24px;
+}
+
+.curve-box img{
+    width:100%;
+    max-width:100%;
+    border:1px solid #d1d5db;
+    border-radius:12px;
+    background:#fff;
+}
+
+@media (max-width:980px){
+    .wrap{
+        width:min(100% - 24px, 100%);
+        margin:0 auto 40px;
+    }
+
+    .grid{
         grid-template-columns:1fr;
     }
 }
-        input:focus{
-            outline:none;
-            border-color:#111827;
-        }
-        .btn{
-            display:inline-block;
-            border:none;
-            border-radius:10px;
-            padding:12px 18px;
-            font-weight:bold;
-            cursor:pointer;
-            text-decoration:none;
-        }
-        .btn-primary{
-            background:#111827;
-            color:#fff;
-        }
-        .btn-secondary{
-            background:#e5e7eb;
-            color:#111827;
-        }
-        .btn-success{
-            background:#0f766e;
-            color:#fff;
-        }
-        .error{
-            margin-top:16px;
-            background:#fef2f2;
-            color:#991b1b;
-            border:1px solid #fecaca;
-            padding:12px 14px;
-            border-radius:10px;
-        }
-        .info-grid{
-            display:grid;
-            grid-template-columns: 180px 1fr;
-            gap:10px 16px;
-            margin-top:16px;
-        }
-        .info-label{
-            font-weight:bold;
-            color:#374151;
-        }
-        .curve-box{
-            margin-top:24px;
-        }
-        .curve-box img{
-            width:100%;
-            max-width:100%;
-            border:1px solid #d1d5db;
-            border-radius:12px;
-            background:#fff;
-        }
-        .actions{
-            display:flex;
-            gap:12px;
-            flex-wrap:wrap;
-            margin-top:24px;
-        }
-        @media (max-width: 900px){
-            .grid{
-                grid-template-columns:1fr;
-            }
-            .info-grid{
-                grid-template-columns:1fr;
-            }
-        }
-    </style>
-</head>
-<body>
 
-<div class="topnav">
-    <div class="brand">
-        <a href="{% url 'home' %}" class="brand-link">
-            <span class="brand-mark">IMPETUS</span>
-            <span class="brand-name">Smart Tools</span>
-        </a>
+@media (max-width:768px){
+    .form-grid{
+        grid-template-columns:1fr;
+    }
+
+    .form-grid .full{
+        grid-column:auto;
+    }
+
+    .info-grid{
+        grid-template-columns:1fr;
+    }
+
+    .page-head h1{
+        font-size:24px;
+    }
+
+    .card{
+        padding:18px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wrap">
+    <div class="page-head">
+        <h1>Cotizador HPS</h1>
+        <p>Selección técnica automática de equipos según condiciones de operación.</p>
     </div>
 
-    <div class="nav-links">
-        <a href="{% url 'home' %}">🏠 Home</a>
-        <a href="{% url 'cotizador' %}">⚙️ Cotizador Bombas</a>
-        <a href="{% url 'historial_cotizaciones' %}">📄 Historial</a>
+    <div class="grid">
+        <div class="card">
+            <h2>Cotización presupuestal bombas</h2>
+
+            {% if request.user.is_authenticated %}
+                <div class="auth-note">
+                    Sesión iniciada como <strong>{{ request.user.username }}</strong>.
+                    Los datos comerciales se tomarán automáticamente de su cuenta.
+                </div>
+            {% else %}
+                <div class="public-note">
+                    Puede revisar el formulario y conocer la información requerida.
+                    Para calcular la cotización y ver el resultado debe crear una cuenta o iniciar sesión.
+                </div>
+            {% endif %}
+
+            <form method="post">
+                {% csrf_token %}
+
+                <div class="form-grid">
+
+                    {% if not request.user.is_authenticated %}
+                        <div>
+                            <label>Empresa</label>
+                            <input type="text" name="empresa">
+                        </div>
+
+                        <div>
+                            <label>Contacto</label>
+                            <input type="text" name="contacto">
+                        </div>
+
+                        <div>
+                            <label>Teléfono</label>
+                            <input type="text" name="telefono">
+                        </div>
+
+                        <div>
+                            <label>Correo</label>
+                            <input type="email" name="correo">
+                        </div>
+                    {% endif %}
+
+                    <div class="full">
+                        <label>Nombre del proyecto / pozo</label>
+                        <input type="text" name="nombre_proyecto">
+                    </div>
+
+                    <div>
+                        <label>Caudal</label>
+                        <input type="number" step="any" name="caudal" required>
+                    </div>
+
+                    <div>
+                        <label>Presión de succión</label>
+                        <input type="number" step="any" name="presion_succion" required>
+                    </div>
+
+                    <div>
+                        <label>Presión de descarga</label>
+                        <input type="number" step="any" name="presion_descarga" required>
+                    </div>
+
+                    <div>
+                        <label>Temperatura del fluido (°F)</label>
+                        <input type="number" step="any" name="temperatura_fluido">
+                    </div>
+
+                    <div>
+                        <label>Gravedad específica</label>
+                        <input type="number" step="any" name="gravedad_especifica" placeholder="1.0 agua">
+                    </div>
+
+                    <div>
+                        <label>Viscosidad (cP)</label>
+                        <input type="number" step="any" name="viscosidad" placeholder="1 cP agua">
+                    </div>
+
+                    <div class="full">
+                        <label>Observaciones del cliente</label>
+                        <textarea name="observaciones_cliente" rows="4"></textarea>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    {% if request.user.is_authenticated %}
+                        <button class="btn btn-primary" type="submit">
+                            Calcular cotización
+                        </button>
+                    {% else %}
+                        <button class="btn btn-primary" type="button" disabled>
+                            Calcular cotización
+                        </button>
+                        <a class="btn btn-outline" href="{% url 'crear_cuenta' %}">
+                            Crear cuenta
+                        </a>
+                        <a class="btn btn-secondary" href="{% url 'login' %}">
+                            Iniciar sesión
+                        </a>
+                    {% endif %}
+                </div>
+            </form>
+
+            {% if error %}
+                <div class="error">{{ error }}</div>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <h2>Resultado</h2>
+
+            {% if resultado and request.user.is_authenticated %}
+                <div class="section-title">Equipo recomendado</div>
+
+                <div class="info-grid">
+                    <div class="info-label">ID equipo</div>
+                    <div>{{ resultado.equipo.id_equipo }}</div>
+
+                    <div class="info-label">Nombre</div>
+                    <div>{{ resultado.equipo.nombre_equipo }}</div>
+
+                    <div class="info-label">Bomba</div>
+                    <div>{{ resultado.equipo.bomba }}</div>
+
+                    <div class="info-label">Longitud total</div>
+                    <div>{{ resultado.equipo.longitud_total_mm }} mm</div>
+
+                    <div class="info-label">Precio base estimado</div>
+                    <div>$ {{ resultado.equipo.precio_base }}</div>
+
+                    <div class="info-label">Tiempo estimado</div>
+                    <div>{{ resultado.equipo.tiempo_base_dias }} días</div>
+                </div>
+
+                <div class="section-title">Punto de operación seleccionado</div>
+
+                <div class="info-grid">
+                    <div class="info-label">ID punto</div>
+                    <div>{{ resultado.punto.id_punto }}</div>
+
+                    <div class="info-label">Caudal punto</div>
+                    <div>{{ resultado.punto.caudal }}</div>
+
+                    <div class="info-label">DP requerida</div>
+                    <div>{{ resultado.punto.dp_requerida }}</div>
+
+                    <div class="info-label">Potencia HP</div>
+                    <div>{{ resultado.punto.potencia_hp }}</div>
+
+                    <div class="info-label">Carga cámara</div>
+                    <div>{{ resultado.punto.carga_camara }}</div>
+
+                    <div class="info-label">Eficiencia</div>
+                    <div>{{ resultado.punto.eficiencia_pct }} %</div>
+
+                    <div class="info-label">Tipo de punto</div>
+                    <div>{{ resultado.punto.tipo_punto }}</div>
+                </div>
+
+                {% if resultado.equipo.curva_imagen %}
+                    <div class="curve-box">
+                        <div class="section-title">Curva del equipo</div>
+                        <img src="{{ resultado.equipo.curva_imagen.url }}" alt="Curva del equipo">
+                    </div>
+                {% endif %}
+
+                {% if solicitud_id %}
+                    <div class="actions">
+                        <a class="btn btn-secondary" href="{% url 'descargar_pdf' solicitud_id %}">
+                            Descargar PDF
+                        </a>
+                        <a class="btn btn-success" href="{% url 'enviar_cotizacion_email' solicitud_id %}">
+                            Enviar cotización al correo
+                        </a>
+                    </div>
+                {% endif %}
+            {% else %}
+                <div class="placeholder-box">
+                    Aquí verá el equipo recomendado, punto de operación y curva asociada
+                    después de iniciar sesión y calcular la cotización.
+                </div>
+            {% endif %}
+        </div>
     </div>
 </div>
-
-    <div class="wrap">
-        <div class="title">
-            <h1>Cotizador Presupuestal</h1>
-            <p>Selección técnica automática de equipos según condiciones de operación.</p>
-        </div>
-
-        <div class="grid">
-<div class="card">
-    <h2>Cotización presupuestal bombas</h2>
-
-    <form method="post">
-        {% csrf_token %}
-
-        <div class="form-grid">
-
-            <div>
-                <label>Empresa</label>
-                <input type="text" name="empresa">
-            </div>
-
-            <div>
-                <label>Contacto</label>
-                <input type="text" name="contacto">
-            </div>
-
-            <div>
-                <label>Teléfono</label>
-                <input type="text" name="telefono">
-            </div>
-
-            <div>
-                <label>Correo</label>
-                <input type="email" name="correo">
-            </div>
-
-            <div style="grid-column:1 / -1;">
-                <label>Nombre del proyecto / pozo</label>
-                <input type="text" name="nombre_proyecto">
-            </div>
-
-            <div>
-                <label>Caudal</label>
-                <input type="number" step="any" name="caudal" required>
-            </div>
-
-            <div>
-                <label>Presión de succión</label>
-                <input type="number" step="any" name="presion_succion" required>
-            </div>
-
-            <div>
-                <label>Presión de descarga</label>
-                <input type="number" step="any" name="presion_descarga" required>
-            </div>
-            <div>
-                <label>Temperatura del fluido (°F)</label>
-                <input type="number" step="any" name="temperatura_fluido">
-            </div>
-
-            <div>
-                <label>Gravedad específica</label>
-                <input type="number" step="any" name="gravedad_especifica" placeholder="1.0 agua">
-            </div>
-
-            <div>
-                <label>Viscosidad (cP)</label>
-                <input type="number" step="any" name="viscosidad" placeholder="1 cP agua">
-            </div> 
-
-            <div style="grid-column:1 / -1;">
-                <label>Observaciones del cliente</label>
-                <textarea name="observaciones_cliente" rows="4"></textarea>
-            </div>
-
-        </div>
-
-        <button class="btn btn-primary" type="submit">
-            Calcular cotización
-        </button>
-
-    </form>
-
-                {% if error %}
-                    <div class="error">{{ error }}</div>
-                {% endif %}
-            </div>
-
-            <div class="card">
-                <h2>Resultado</h2>
-
-                {% if resultado %}
-                    <div class="section-title">Equipo recomendado</div>
-
-                    <div class="info-grid">
-                        <div class="info-label">ID equipo</div>
-                        <div>{{ resultado.equipo.id_equipo }}</div>
-
-                        <div class="info-label">Nombre</div>
-                        <div>{{ resultado.equipo.nombre_equipo }}</div>
-
-                        <div class="info-label">Bomba</div>
-                        <div>{{ resultado.equipo.bomba }}</div>
-
-                        <div class="info-label">Longitud total</div>
-                        <div>{{ resultado.equipo.longitud_total_mm }} mm</div>
-
-                        <div class="info-label">Precio base estimado</div>
-                        <div>$ {{ resultado.equipo.precio_base }}</div>
-
-                        <div class="info-label">Tiempo estimado</div>
-                        <div>{{ resultado.equipo.tiempo_base_dias }} días</div>
-                    </div>
-
-                    <div class="section-title">Punto de operación seleccionado</div>
-
-                    <div class="info-grid">
-                        <div class="info-label">ID punto</div>
-                        <div>{{ resultado.punto.id_punto }}</div>
-
-                        <div class="info-label">Caudal punto</div>
-                        <div>{{ resultado.punto.caudal }}</div>
-
-                        <div class="info-label">DP requerida</div>
-                        <div>{{ resultado.punto.dp_requerida }}</div>
-
-                        <div class="info-label">Potencia HP</div>
-                        <div>{{ resultado.punto.potencia_hp }}</div>
-
-                        <div class="info-label">Carga cámara</div>
-                        <div>{{ resultado.punto.carga_camara }}</div>
-
-                        <div class="info-label">Eficiencia</div>
-                        <div>{{ resultado.punto.eficiencia_pct }} %</div>
-
-                        <div class="info-label">Tipo de punto</div>
-                        <div>{{ resultado.punto.tipo_punto }}</div>
-                    </div>
-
-                    {% if resultado.equipo.curva_imagen %}
-                        <div class="curve-box">
-                            <div class="section-title">Curva del equipo</div>
-                            <img src="{{ resultado.equipo.curva_imagen.url }}" alt="Curva del equipo">
-                        </div>
-                    {% endif %}
-
-                    {% if solicitud_id %}
-                        <div class="actions">
-                            <a class="btn btn-secondary" href="{% url 'descargar_pdf' solicitud_id %}">Descargar PDF</a>
-                            <a class="btn btn-success" href="{% url 'enviar_cotizacion_email' solicitud_id %}">Enviar cotización al correo</a>
-                        </div>
-                    {% endif %}
-                {% else %}
-                    <p>Aquí verá el equipo recomendado, el punto de operación y la curva asociada.</p>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</body>
-</html>
+{% endblock %}

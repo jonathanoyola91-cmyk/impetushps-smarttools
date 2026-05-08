@@ -9,14 +9,76 @@
 body{margin:0;font-family:Arial,sans-serif;background:#eef2f7;color:#1f2937}
 .topnav{background:#071127;padding:10px 0}
 .topnav-inner{width:100%;max-width:1980px;margin:0 auto;padding:0 32px;min-height:68px;display:flex;justify-content:space-between;align-items:center;gap:24px}
-.brand-link{text-decoration:none;color:#fff;display:flex;align-items:center;gap:14px}.brand-logo{height:52px;width:auto;display:block;object-fit:contain}.brand-title{font-size:30px;font-weight:800;color:#fff;letter-spacing:.5px}.brand-sub{font-size:14px;color:#cbd5e1;margin-top:2px;letter-spacing:.3px}.brand-text{display:flex;flex-direction:column;justify-content:center;line-height:1}.nav-links{display:flex;gap:14px;align-items:center;flex-wrap:wrap}.nav-links a{color:#fff;text-decoration:none;font-weight:700;padding:10px 14px;border-radius:10px;transition:.2s ease;font-size:15px}.nav-links a:hover{background:rgba(255,255,255,.10)}.page-wrap{width:100%;max-width:1980px;margin:0 auto;padding:24px 32px 50px}.auth-pill{color:#cbd5e1;font-size:12px;font-weight:700;padding:10px 12px;border:1px solid rgba(255,255,255,.14);border-radius:999px}
-@media(max-width:900px){.topnav{position:sticky;top:0;z-index:999;backdrop-filter:blur(12px)}.topnav-inner{padding:12px 16px;min-height:auto;flex-direction:column;align-items:center;gap:14px}.brand-link{gap:10px}.brand-logo{height:38px}.brand-title{font-size:20px}.brand-sub{font-size:11px}.nav-links{width:100%;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.nav-links a{font-size:12px;padding:10px 8px;text-align:center;border-radius:12px;background:rgba(255,255,255,.06)}.auth-pill{display:none}.page-wrap{padding:16px 14px 40px}}
+.brand-link{text-decoration:none;color:#fff;display:flex;align-items:center;gap:14px}
+.brand-logo{height:52px;width:auto;display:block;object-fit:contain}
+.brand-title{font-size:30px;font-weight:800;color:#fff;letter-spacing:.5px}
+.brand-sub{font-size:14px;color:#cbd5e1;margin-top:2px;letter-spacing:.3px}
+.brand-text{display:flex;flex-direction:column;justify-content:center;line-height:1}
+.nav-links{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.nav-links a{color:#fff;text-decoration:none;font-weight:700;padding:10px 14px;border-radius:10px;transition:.2s ease;font-size:15px}
+.nav-links a:hover{background:rgba(255,255,255,.10)}
+.page-wrap{width:100%;max-width:1980px;margin:0 auto;padding:24px 32px 50px}
+.auth-pill{color:#cbd5e1;font-size:12px;font-weight:700;padding:10px 12px;border:1px solid rgba(255,255,255,.14);border-radius:999px}
+.message-box{background:#fff7ed;border:1px solid #fdba74;color:#9a3412;border-radius:12px;padding:12px 14px;margin:0 0 14px}
+@media(max-width:900px){
+    .topnav{position:sticky;top:0;z-index:999;backdrop-filter:blur(12px)}
+    .topnav-inner{padding:12px 16px;min-height:auto;flex-direction:column;align-items:center;gap:14px}
+    .brand-link{gap:10px}
+    .brand-logo{height:38px}
+    .brand-title{font-size:20px}
+    .brand-sub{font-size:11px}
+    .nav-links{width:100%;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+    .nav-links a{font-size:12px;padding:10px 8px;text-align:center;border-radius:12px;background:rgba(255,255,255,.06)}
+    .auth-pill{display:none}
+    .page-wrap{padding:16px 14px 40px}
+}
 {% block extra_css %}{% endblock %}
 </style>
 </head>
 <body>
-<div class="topnav"><div class="topnav-inner"><div class="topnav-left"><a href="{% url 'home' %}" class="brand-link"><img src="{% static 'cotizador/logo.png' %}" class="brand-logo" alt="IMPETUS"><div class="brand-text"><span class="brand-title">IMPETUS</span><span class="brand-sub">Smart Tools</span></div></a></div><div class="topnav-right"><div class="nav-links"><a href="{% url 'home' %}">🏠 Home</a><a href="{% url 'cotizador' %}">⚙️ Bombas</a><a href="{% url 'reparacion_camara' %}">🧩 Cámaras</a><a href="{% url 'diagnostico_variador' %}">⚡ VSD</a>{% if request.user.is_authenticated %}<a href="{% url 'historial_cotizaciones' %}">📄 Historial</a><span class="auth-pill">{{ request.user.username }}</span><a href="{% url 'logout' %}">Salir</a>{% else %}<a href="{% url 'login' %}">🔐 Ingresar</a>{% endif %}</div></div></div></div>
-<div class="page-wrap">{% if messages %}{% for message in messages %}<div style="background:#fff7ed;border:1px solid #fdba74;color:#9a3412;border-radius:12px;padding:12px 14px;margin:0 0 14px;">{{ message }}</div>{% endfor %}{% endif %}{% block content %}{% endblock %}</div>
+
+<div class="topnav">
+    <div class="topnav-inner">
+        <div class="topnav-left">
+            <a href="{% url 'home' %}" class="brand-link">
+                <img src="{% static 'cotizador/logo.png' %}" class="brand-logo" alt="IMPETUS">
+                <div class="brand-text">
+                    <span class="brand-title">IMPETUS</span>
+                    <span class="brand-sub">Smart Tools</span>
+                </div>
+            </a>
+        </div>
+
+        <div class="topnav-right">
+            <div class="nav-links">
+                <a href="{% url 'home' %}">🏠 Home</a>
+                <a href="{% url 'cotizador' %}">Bombas</a>
+                <a href="{% url 'reparacion_camara' %}">Cámaras</a>
+                <a href="{% url 'diagnostico_variador' %}">VSD</a>
+
+                {% if request.user.is_authenticated %}
+                    <a href="{% url 'historial_cotizaciones' %}">📄 Historial</a>
+                    <span class="auth-pill">{{ request.user.username }}</span>
+                    <a href="{% url 'logout' %}">Salir</a>
+                {% else %}
+                    <a href="{% url 'crear_cuenta' %}">Crear cuenta</a>
+                    <a href="{% url 'login' %}">🔐 Ingresar</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="page-wrap">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="message-box">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    {% block content %}{% endblock %}
+</div>
+
 {% block extra_js %}{% endblock %}
 </body>
 </html>

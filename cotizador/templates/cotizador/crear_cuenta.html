@@ -1,0 +1,204 @@
+{% extends "cotizador/base.html" %}
+
+{% block title %}
+Crear cuenta | IMPETUS Smart Tools
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.auth-wrap{
+    max-width:580px;
+    margin:50px auto 70px;
+}
+
+.auth-card{
+    background:#fff;
+    border:1px solid #e5e7eb;
+    border-radius:22px;
+    padding:34px;
+    box-shadow:0 16px 36px rgba(15,23,42,.10);
+}
+
+.auth-badge{
+    display:inline-block;
+    background:#eff6ff;
+    color:#1d4ed8;
+    border:1px solid #bfdbfe;
+    padding:8px 12px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:800;
+    margin-bottom:16px;
+}
+
+.auth-card h1{
+    margin:0 0 10px;
+    color:#111827;
+    font-size:34px;
+    line-height:1.1;
+}
+
+.auth-card p{
+    color:#6b7280;
+    line-height:1.65;
+    margin:0 0 24px;
+}
+
+.form-group{
+    margin-bottom:18px;
+}
+
+.form-group label{
+    display:block;
+    margin-bottom:8px;
+    font-weight:800;
+    color:#111827;
+    font-size:14px;
+}
+
+.form-control{
+    width:100%;
+    padding:13px 14px;
+    border:1px solid #d1d5db;
+    border-radius:12px;
+    font-size:15px;
+    transition:.2s;
+}
+
+.form-control:focus{
+    outline:none;
+    border-color:#111827;
+    box-shadow:0 0 0 3px rgba(17,24,39,.08);
+}
+
+.btn-primary-auth{
+    width:100%;
+    border:none;
+    background:#111827;
+    color:#fff;
+    padding:14px 18px;
+    border-radius:13px;
+    font-weight:900;
+    cursor:pointer;
+    font-size:15px;
+    margin-top:8px;
+}
+
+.btn-secondary-auth{
+    width:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin-top:12px;
+    padding:14px 18px;
+    border-radius:13px;
+    border:1px solid #111827;
+    background:#fff;
+    color:#111827;
+    font-weight:900;
+    font-size:15px;
+    text-decoration:none;
+}
+
+.auth-alert{
+    background:#ecfdf5;
+    border:1px solid #bbf7d0;
+    color:#166534;
+    border-radius:12px;
+    padding:12px 14px;
+    margin-bottom:18px;
+}
+
+.errorlist{
+    margin-top:8px;
+    color:#dc2626;
+    font-size:13px;
+    padding-left:18px;
+}
+
+@media(max-width:700px){
+    .auth-wrap{
+        margin:24px auto 44px;
+    }
+
+    .auth-card{
+        padding:24px 20px;
+        border-radius:20px;
+    }
+
+    .auth-card h1{
+        font-size:28px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+    <div class="auth-card">
+
+        <span class="auth-badge">
+            SOLICITUD DE ACCESO
+        </span>
+
+        <h1>Crear cuenta</h1>
+
+        <p>
+            Complete el formulario para solicitar acceso al módulo cotizador de IMPETUS.
+            Su cuenta quedará pendiente de autorización.
+        </p>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="auth-alert">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="form-group">
+                {{ form.nombre.label_tag }}
+                {{ form.nombre }}
+                {{ form.nombre.errors }}
+            </div>
+
+            <div class="form-group">
+                {{ form.empresa.label_tag }}
+                {{ form.empresa }}
+                {{ form.empresa.errors }}
+            </div>
+
+            <div class="form-group">
+                {{ form.email.label_tag }}
+                {{ form.email }}
+                {{ form.email.errors }}
+            </div>
+
+            <div class="form-group">
+                {{ form.username.label_tag }}
+                {{ form.username }}
+                {{ form.username.errors }}
+            </div>
+
+            <div class="form-group">
+                {{ form.password.label_tag }}
+                {{ form.password }}
+                {{ form.password.errors }}
+            </div>
+
+            <button type="submit" class="btn-primary-auth">
+                Enviar solicitud
+            </button>
+
+            <a href="{% url 'login' %}" class="btn-secondary-auth">
+                Volver a iniciar sesión
+            </a>
+
+        </form>
+
+    </div>
+</div>
+{% endblock %}
