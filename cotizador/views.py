@@ -387,6 +387,7 @@ def cotizador_view(request):
     solicitud_id = None
 
     if request.method == "POST":
+
         if not request.user.is_authenticated:
             messages.warning(
                 request,
@@ -395,64 +396,84 @@ def cotizador_view(request):
             return redirect("crear_cuenta")
 
         try:
-            empresa = request.POST.get("empresa", "").strip() or request.user.first_name or request.user.username
-            contacto = request.POST.get("contacto", "").strip() or request.user.get_full_name() or request.user.username
-            correo = request.POST.get("correo", "").strip() or request.user.email or "director.comercial@impetushps.co"
+            empresa = (
+                request.POST.get("empresa", "").strip()
+                or request.user.first_name
+                or request.user.username
+            )
+
+            contacto = (
+                request.POST.get("contacto", "").strip()
+                or request.user.get_full_name()
+                or request.user.username
+            )
+
+            correo = (
+                request.POST.get("correo", "").strip()
+                or request.user.email
+                or "director.comercial@impetushps.co"
+            )
+
             telefono = request.POST.get("telefono", "").strip()
-            
+
             nombre_proyecto = request.POST.get("nombre_proyecto", "").strip()
-            marca = request.POST.get("marca", "").strip()
-            modelo = request.POST.get("modelo", "").strip()
-            serial = request.POST.get("serial", "").strip()
-            tipo_reparacion = request.POST.get("tipo_reparacion", "").strip()
             observaciones_cliente = request.POST.get("observaciones_cliente", "").strip()
-           
 
-            if not empresa or not contacto or not correo:
-                error = "No fue posible identificar empresa, contacto o correo del usuario."
+            caudal = Decimal(request.POST.get("caudal", "0"))
+            ps = Decimal(request.POST.get("presion_succion", "0"))
+            pd = Decimal(request.POST.get("presion_descarga", "0"))
+
+            resultado = seleccionar_mejor_punto(
+                caudal=caudal,
+                presion_succion=ps,
+                presion_descarga=pd,
+            )
+
+            if not resultado:
+                error = "No se encontró un equipo compatible."
+
             else:
-                tarifa = ReparacionCamaraTarifa.objects.filter(
-                    activo=True,
-                    marca=marca,
-                    modelo=modelo,
-                    tipo_reparacion=tipo_reparacion,
-                ).first()
+                dp = calcular_dp(ps, pd)
 
-                if not tarifa:
-                    error = "No se encontró configuración para esa selección."
-                else:
-                    solicitud = SolicitudReparacionCamara.objects.create(
-                        empresa=empresa,
-                        contacto=contacto,
-                        correo=correo,
-                        telefono=telefono,
-                        nombre_proyecto=nombre_proyecto,
-                        marca=marca,
-                        modelo=modelo,
-                        serial=serial,
-                        tipo_reparacion=tipo_reparacion,
-                        observaciones_cliente=observaciones_cliente,
-                        observacion_tecnica=tarifa.observacion,
-                        tiempo_estimado_texto=tarifa.tiempo_estimado_texto,
-                        valor_estimado=tarifa.valor_estimado,
+                solicitud = SolicitudCotizacion.objects.create(
+                    empresa=empresa,
+                    contacto=contacto,
+                    correo=correo,
+                    telefono=telefono,
+                    nombre_proyecto=nombre_proyecto,
+                    observaciones_cliente=observaciones_cliente,
+                    presion_succion=ps,
+                    presion_descarga=pd,
+                    caudal=caudal,
+                    dp_calculada=dp,
+                    equipo_recomendado=resultado["equipo"],
+                    punto_recomendado=resultado["punto"],
+                    valor_estimado=resultado["equipo"].precio_base or 0,
+                    tiempo_entrega_estimado_dias=resultado["equipo"].tiempo_base_dias or 0,
+                )
+
+                solicitud_id = solicitud.id
+
+                try:
+                    notificar_nueva_cotizacion_bomba(solicitud)
+                except Exception as exc:
+                    messages.warning(
+                        request,
+                        f"Cotización creada, pero no se pudo enviar notificación: {exc}"
                     )
 
-                    resultado = solicitud
-                    solicitud_id = solicitud.id
-
-                    try:
-                        notificar_nueva_reparacion_camara(solicitud)
-                    except Exception as exc:
-                        messages.warning(request, f"Solicitud creada, pero no se pudo enviar notificación: {exc}")
-
         except Exception as exc:
-            error = f"Error: {exc}"
+            error = f"Error en los datos ingresados: {exc}"
 
-    return render(request, "cotizador/formulario.html", {
-        "resultado": resultado,
-        "error": error,
-        "solicitud_id": solicitud_id,
-    })
+    return render(
+        request,
+        "cotizador/formulario.html",
+        {
+            "resultado": resultado,
+            "error": error,
+            "solicitud_id": solicitud_id,
+        }
+    )
 
 
 @login_required
