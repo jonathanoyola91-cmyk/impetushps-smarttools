@@ -1,3 +1,4 @@
+from .views import importar_cotizador_bombas_view
 from . import views
 from django.urls import path
 from .views import (
@@ -28,4 +29,5 @@ urlpatterns = [
     path("diagnostico-variador/", diagnostico_variador_view, name="diagnostico_variador"),
     path("diagnostico-variador/importar/", importar_diagnostico_variador_view, name="importar_diagnostico_variador"),
     path("crear-cuenta/", views.crear_cuenta, name="crear_cuenta"),
+    path("cotizador-bombas/importar/",importar_cotizador_bombas_view,name="importar_cotizador_bombas"),
 ]

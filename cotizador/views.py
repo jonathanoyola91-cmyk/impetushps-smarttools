@@ -10,6 +10,10 @@ from django.db.models import Q
 from django.http import FileResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
+from .forms import ImportadorCotizadorBombasForm
+from django.core.management import call_command
+import tempfile
+import os
 
 from .email_utils import (
     enviar_cotizacion_por_correo,
@@ -177,14 +181,22 @@ def reparacion_camara_view(request):
     error = None
     solicitud_id = None
 
-    tarifas = ReparacionCamaraTarifa.objects.filter(activo=True).order_by("marca", "modelo")
-    marcas = list(tarifas.values_list("marca", flat=True).distinct())
+    tarifas = ReparacionCamaraTarifa.objects.filter(activo=True)
+
+    marcas = sorted(
+        set(
+            tarifas.values_list("marca", flat=True)
+        )
+    )
+
     modelos_por_marca = {}
 
     for marca in marcas:
-        modelos_por_marca[marca] = list(
-            tarifas.filter(marca=marca).values_list("modelo", flat=True).distinct()
-        )
+        modelos = tarifas.filter(
+            marca=marca
+        ).values_list("modelo", flat=True)
+
+        modelos_por_marca[marca] = sorted(set(modelos))
 
     if request.method == "POST":
         if not request.user.is_authenticated:
@@ -276,6 +288,67 @@ def solicitar_precio_reparacion(request, solicitud_id):
     )
     return render(request, "cotizador/precio_solicitado.html", {"solicitud": solicitud, "mensaje": mensaje})
 
+@login_required
+def importar_cotizador_bombas_view(request):
+    resumen = None
+    error = None
+    mensaje_ok = None
+
+    form = ImportadorCotizadorBombasForm(
+        request.POST or None,
+        request.FILES or None
+    )
+
+    if request.method == "POST":
+        if form.is_valid():
+            archivo = form.cleaned_data["archivo"]
+            limpiar = form.cleaned_data["limpiar"]
+
+            if not archivo.name.lower().endswith(".xlsx"):
+                error = "Debe cargar un archivo Excel .xlsx"
+            else:
+                try:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
+                        for chunk in archivo.chunks():
+                            tmp.write(chunk)
+
+                        ruta_temporal = tmp.name
+
+                    if limpiar:
+                        call_command(
+                            "importar_excel_cotizador",
+                            ruta_temporal,
+                            "--limpiar"
+                        )
+                    else:
+                        call_command(
+                            "importar_excel_cotizador",
+                            ruta_temporal
+                        )
+
+                    mensaje_ok = "Importación de bombas completada correctamente."
+
+                except Exception as exc:
+                    error = f"Error procesando archivo: {exc}"
+
+                finally:
+                    try:
+                        os.remove(ruta_temporal)
+                    except Exception:
+                        pass
+        else:
+            error = "Debe seleccionar un archivo válido."
+
+    return render(
+        request,
+        "cotizador/importar_cotizador_bombas.html",
+        {
+            "form": form,
+            "resumen": resumen,
+            "error": error,
+            "mensaje_ok": mensaje_ok,
+        }
+    )
 
 @login_required
 def descargar_pdf(request, solicitud_id):

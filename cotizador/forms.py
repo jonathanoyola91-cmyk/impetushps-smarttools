@@ -77,6 +77,18 @@ class SolicitudCuentaForm(forms.ModelForm):
 
         return username
 
+class ImportadorCotizadorBombasForm(forms.Form):
+    archivo = forms.FileField(
+        label="Archivo Excel de bombas",
+        help_text="Debe cargar un archivo .xlsx con equipos base y curvas de operación."
+    )
+
+    limpiar = forms.BooleanField(
+        label="Borrar datos existentes antes de importar",
+        required=False,
+        initial=True
+    )
+
 
 class ImportadorDiagnosticoVariadorForm(forms.Form):
     archivo = forms.FileField(
