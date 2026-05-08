@@ -1,4 +1,5 @@
 {% extends "cotizador/base.html" %}
+{% load static %}
 
 {% block title %}Cotizador Presupuestal | IMPETUS Smart Tools{% endblock %}
 
@@ -416,12 +417,14 @@ textarea{
                     <div>{{ resultado.punto.tipo_punto }}</div>
                 </div>
 
-                {% if resultado.equipo.curva_imagen %}
+               
                     <div class="curve-box">
                         <div class="section-title">Curva del equipo</div>
-                        <img src="{{ resultado.equipo.curva_imagen.url }}" alt="Curva del equipo">
+
+                        <img src="{% static 'img/curvas/'|add:resultado.equipo.id_equipo|add:'.png' %}"
+                             alt="Curva del equipo">
                     </div>
-                {% endif %}
+                
 
                 {% if solicitud_id %}
                     <div class="actions">
