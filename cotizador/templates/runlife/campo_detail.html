@@ -14,7 +14,13 @@
 
             <div class="col-md-3">
                 <label class="form-label">Campo / Locación</label>
-                <input type="text" class="form-control" value="{{ campo.nombre }}" readonly>
+                <select class="form-select" id="campoSelect">
+                    {% for c in campos_usuario %}
+                        <option value="{% url 'runlife:campo_detail' c.id %}" {% if c.id == campo.id %}selected{% endif %}>
+                            {{ c.cliente.nombre }} - {{ c.nombre }}
+                        </option>
+                    {% endfor %}
+                </select>
             </div>
 
             <div class="col-md-3">
@@ -42,20 +48,41 @@
 
         </form>
 
+    </div>
 
     <div class="card-box mt-3">
         <div class="card-padding">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-                <div>
-                    <h5 class="section-title mb-1">📦 Bodega del Campo</h5>
-                    <p class="mini-muted mb-0">Equipos entregados al cliente y pendientes por instalar.</p>
+            <div class="mb-3">
+                <div class="d-flex justify-content-between align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button"
+                                class="btn btn-sm btn-light bodega-toggle-btn"
+                                onclick="toggleBodegaContent()"
+                                title="Mostrar / ocultar bodega">
+                            <i id="toggleBodegaIcon" class="bi bi-chevron-down"></i>
+                        </button>
+
+                        <h5 class="section-title mb-0">📦 Bodega del Campo</h5>
+                    </div>
+
+                    {% if puede_gestionar_bodega %}
+                        <button type="button"
+                                class="btn btn-sm btn-primary"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#formBodegaCampo"
+                                aria-expanded="false"
+                                aria-controls="formBodegaCampo">
+                            <i class="bi bi-plus-circle"></i> Agregar equipo a bodega
+                        </button>
+                    {% endif %}
                 </div>
-                {% if puede_gestionar_bodega %}
-                    <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#formBodegaCampo">
-                        <i class="bi bi-plus-circle"></i> Agregar equipo a bodega
-                    </button>
-                {% endif %}
+
+                <p class="mini-muted mt-1 mb-0">
+                    Equipos entregados al cliente y pendientes por instalar.
+                </p>
             </div>
+
+            <div id="bodegaContent">
 
             {% if puede_gestionar_bodega %}
             <div class="collapse mb-3" id="formBodegaCampo">
@@ -89,7 +116,15 @@
                             <label class="form-label">Modelo</label>
                             <input name="modelo" class="form-control">
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
+                            <label class="form-label">Marca</label>
+                            <input name="marca" class="form-control" value="IMPETUS">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Parte Número</label>
+                            <input name="parte_numero" class="form-control">
+                        </div>
+                        <div class="col-md-6">
                             <label class="form-label">Descripción</label>
                             <input name="descripcion" class="form-control">
                         </div>
@@ -113,13 +148,16 @@
             </div>
             {% endif %}
 
-            <div class="table-responsive-custom">
+        <div id="tablaBodegaWrapper">
+            <div class="table-responsive w-100 bodega-table-wrap">
                 <table class="table table-hover">
                     <thead>
                         <tr>
                             <th>Serial</th>
                             <th>Tipo</th>
                             <th>Modelo</th>
+                            <th>Parte Nº</th>
+                            <th>Descripción</th> 
                             <th>Fecha entrega</th>
                             <th>Garantía</th>
                             <th>Estado</th>
@@ -131,6 +169,8 @@
                                 <td>{{ item.componente.serial }}</td>
                                 <td>{{ item.componente.get_tipo_display }}</td>
                                 <td>{{ item.componente.modelo|default:"-" }}</td>
+                                <td>{{ item.componente.parte_numero|default:"-" }}</td>
+                                <td>{{ item.componente.descripcion|default:"-" }}</td>
                                 <td>{{ item.componente.fecha_entrega_cliente|date:"d/m/Y" }}</td>
                                 <td>
                                     {% if item.componente.en_garantia_interna or item.componente.en_garantia_real %}
@@ -142,11 +182,13 @@
                                 <td><span class="badge-warning">Disponible</span></td>
                             </tr>
                         {% empty %}
-                            <tr><td colspan="6" class="text-muted">No hay equipos en bodega.</td></tr>
+                            <tr><td colspan="8" class="text-muted">No hay equipos en bodega.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+            </div>
+        </div>
         </div>
     </div>
 
@@ -254,8 +296,8 @@
         <!-- IZQUIERDA -->
         <div class="d-flex align-items-center gap-3 flex-wrap">
 
-            <strong>
-                <i class="bi bi-chevron-down me-2"></i>
+            <strong onclick="toggleSistema('{{ sistema.id }}')" style="cursor:pointer;">
+                <i id="icon-sistema-{{ sistema.id }}" class="bi bi-chevron-down me-2"></i>
                 {{ sistema.nombre }}
             </strong>
 
@@ -284,7 +326,7 @@
     </div>
 </div>
 
-                    <div class="system-body table-scroll">
+                    <div id="body-sistema-{{ sistema.id }}" class="system-body table-scroll d-none">
                         <div class="table-responsive-custom">
                             <table class="table table-hover">
                             <thead>
@@ -436,43 +478,95 @@
 
     </div>
 
-    <div class="bottom-summary">
 
-        <div class="row text-center">
-
-            <div class="col-md summary-item">
-                <div class="text-muted small">Total Componentes</div>
-                <div class="fs-3 fw-bold text-primary">{{ total_componentes }}</div>
-                <div class="text-muted small">Activos</div>
-            </div>
-
-            <div class="col-md summary-item">
-                <div class="text-muted small">En Garantía</div>
-                <div class="fs-3 fw-bold text-success">{{ en_garantia|length }}</div>
-                <div class="text-muted small">&lt;= 365 días</div>
-            </div>
-
-            <div class="col-md summary-item">
-                <div class="text-muted small">Fuera de Garantía</div>
-                <div class="fs-3 fw-bold text-danger">{{ fuera_garantia|length }}</div>
-                <div class="text-muted small">&gt; 365 días</div>
-            </div>
-
-            <div class="col-md summary-item">
-                <div class="text-muted small">Próximo Mantenimiento</div>
-                <div class="fs-3 fw-bold text-warning">{{ proximos|length }}</div>
-                <div class="text-muted small">Revisar alertas</div>
-            </div>
-
-            <div class="col-md summary-item">
-                <div class="text-muted small">Mantenimientos Vencidos</div>
-                <div class="fs-3 fw-bold text-danger">{{ vencidos|length }}</div>
-                <div class="text-muted small">Atención requerida</div>
-            </div>
-
-        </div>
-
-    </div>
 
 </div>
+<script>
+const campoSelect = document.getElementById("campoSelect");
+if (campoSelect) {
+    campoSelect.addEventListener("change", function () {
+        if (this.value) {
+            window.location.href = this.value;
+        }
+    });
+}
+
+function toggleBodegaContent() {
+    const content = document.getElementById("bodegaContent");
+    const icon = document.getElementById("toggleBodegaIcon");
+
+    if (!content || !icon) return;
+
+    content.classList.toggle("d-none");
+
+    if (content.classList.contains("d-none")) {
+        icon.classList.remove("bi-chevron-down");
+        icon.classList.add("bi-chevron-right");
+    } else {
+        icon.classList.remove("bi-chevron-right");
+        icon.classList.add("bi-chevron-down");
+    }
+}
+
+function toggleSistema(id) {
+    const body = document.getElementById("body-sistema-" + id);
+    const icon = document.getElementById("icon-sistema-" + id);
+
+    if (!body || !icon) return;
+
+    body.classList.toggle("d-none");
+
+    if (body.classList.contains("d-none")) {
+        icon.classList.remove("bi-chevron-down");
+        icon.classList.add("bi-chevron-right");
+    } else {
+        icon.classList.remove("bi-chevron-right");
+        icon.classList.add("bi-chevron-down");
+    }
+}
+</script>
+<style>
+.bodega-toggle-btn {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid #d8dee8;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bodega-table-wrap {
+    width: calc(100% - 210px);
+    max-width: calc(100% - 210px);
+    overflow-x: auto;
+}
+
+.bodega-table-wrap table {
+    width: 100%;
+    min-width: 980px;
+    table-layout: fixed;
+}
+
+.bodega-table-wrap thead th,
+.bodega-table-wrap tbody td {
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.bodega-table-wrap tbody tr td[colspan="8"] {
+    width: 100%;
+}
+
+.table td, .table th {
+    white-space: nowrap;
+}
+
+@media (max-width: 992px) {
+    .bodega-table-wrap {
+        width: 100%;
+        max-width: 100%;
+    }
+}
+</style>
 {% endblock %}

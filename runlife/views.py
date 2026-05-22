@@ -781,6 +781,13 @@ def campo_detail(request, campo_id):
         messages.error(request, "No tiene acceso a este campo operativo.")
         return redirect("runlife:dashboard")
 
+    # Campos permitidos para que el usuario pueda cambiar de Campo/Locación
+    # desde esta misma pantalla sin regresar al dashboard.
+    campos_usuario = _campos_permitidos(user).select_related("cliente").order_by(
+        "cliente__nombre",
+        "nombre"
+    )
+
     sistema_id = request.GET.get("sistema")
 
     sistemas_base = InjectionSystem.objects.filter(
@@ -927,6 +934,7 @@ def campo_detail(request, campo_id):
         request,
         sidebar_subtitle=campo.cliente.nombre,
         campo=campo,
+        campos_usuario=campos_usuario,
         sistemas=sistemas,
         sistemas_base=sistemas_base,
         sistema_id=sistema_id,
