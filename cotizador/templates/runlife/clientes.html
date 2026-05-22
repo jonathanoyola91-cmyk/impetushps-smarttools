@@ -1,0 +1,81 @@
+{% extends "runlife/base_runlife.html" %}
+{% block title %}RunLife - Clientes{% endblock %}
+{% block content %}
+<div class="main-content">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="top-panel">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <div class="title-main mb-1">Clientes RunLife</div>
+                <div class="subtitle">
+                    Cada usuario solo visualiza los clientes y campos operativos asignados a su cuenta.
+                </div>
+            </div>
+            <div class="text-end">
+                <div class="subtitle">Usuario</div>
+                <strong>{{ request.user.username }}</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        {% for item in clientes_data %}
+            <div class="col-md-6 col-xl-4">
+                <div class="field-card">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <div class="field-name">{{ item.cliente.nombre }}</div>
+                            <div class="client-name">Cliente operativo</div>
+                        </div>
+                        <span class="badge-status">Activo</span>
+                    </div>
+
+                    <hr>
+
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <div class="kpi-number text-primary">{{ item.total_campos }}</div>
+                            <div class="kpi-label">Campos</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="kpi-number text-success">{{ item.total_sistemas }}</div>
+                            <div class="kpi-label">Sistemas</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="kpi-number text-dark">{{ item.total_componentes }}</div>
+                            <div class="kpi-label">Componentes</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="fw-bold mb-2">Campos visibles</div>
+                        {% for campo in item.campos %}
+                            <a href="{% url 'runlife:campo_detail' campo.id %}" class="d-flex justify-content-between align-items-center text-decoration-none border rounded p-2 mb-2">
+                                <span><i class="bi bi-pin-map text-primary"></i> {{ campo.nombre }}</span>
+                                <i class="bi bi-arrow-right"></i>
+                            </a>
+                        {% empty %}
+                            <div class="text-muted small">No hay campos asignados.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="col-12">
+                <div class="empty-card">
+                    <h4 class="mb-2">Sin clientes asignados</h4>
+                    <p class="text-muted mb-0">Este usuario aún no tiene campos operativos asignados.</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

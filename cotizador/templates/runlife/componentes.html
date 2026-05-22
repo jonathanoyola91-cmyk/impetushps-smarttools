@@ -1,0 +1,28 @@
+{% extends "runlife/base_runlife.html" %}
+{% block title %}RunLife - Componentes{% endblock %}
+{% block content %}
+<div class="main-content">
+    <div class="top-panel">
+        <div class="title-main mb-1">Componentes Activos</div>
+        <div class="subtitle">Listado general de componentes instalados actualmente.</div>
+    </div>
+    <div class="card-box card-padding">
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead><tr><th>Cliente</th><th>Campo</th><th>Sistema</th><th>Componente</th><th>Serial</th><th>Modelo</th><th>Instalación</th><th>RunLife</th><th>Estado</th><th></th></tr></thead>
+                <tbody>
+                    {% for c in componentes %}
+                    <tr>
+                        <td>{{ c.sistema.campo.cliente.nombre }}</td><td>{{ c.sistema.campo.nombre }}</td><td>{{ c.sistema.nombre }}</td>
+                        <td><strong>{{ c.descripcion|default:c.get_tipo_display }}</strong></td><td>{{ c.serial }}</td><td>{{ c.modelo|default:"-" }}</td><td>{{ c.fecha_instalacion|default:"-" }}</td>
+                        <td>{% if c.runlife_dias > 365 %}<span class="runlife-danger">{{ c.runlife_dias }} días</span>{% else %}<span class="runlife-ok">{{ c.runlife_dias }} días</span>{% endif %}</td>
+                        <td>{% if c.estado_mantenimiento == "VENCIDO" %}<span class="badge-danger-custom">Vencido</span>{% elif c.estado_mantenimiento == "PROXIMO" %}<span class="badge-warning">Próximo</span>{% else %}<span class="badge-ok">OK</span>{% endif %}</td>
+                        <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'runlife:sistema_detail' c.sistema.id %}">Ver sistema</a></td>
+                    </tr>
+                    {% empty %}<tr><td colspan="10" class="text-center text-muted">No hay componentes activos.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

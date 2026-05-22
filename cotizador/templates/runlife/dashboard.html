@@ -1,0 +1,157 @@
+{% extends "runlife/base_runlife.html" %}
+{% block title %}RunLife - Dashboard{% endblock %}
+{% block content %}
+<div class="main-content">
+
+    <div class="top-panel">
+
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+
+            <div>
+                <div class="title-main">
+                    Dashboard RunLife
+                </div>
+
+                <div class="subtitle">
+                    Vista general por campos operativos asignados al cliente.
+                </div>
+            </div>
+
+            <div class="text-end">
+                <div class="subtitle">Usuario</div>
+                <strong>{{ request.user.username }}</strong>
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="row g-3 mb-4" id="resumen">
+
+        <div class="col-md-4">
+            <div class="summary-card">
+                <div class="subtitle">Campos asignados</div>
+                <div class="summary-number">{{ campos_data|length }}</div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="summary-card">
+                <div class="subtitle">Sistemas visibles</div>
+                <div class="summary-number">
+                    {% widthratio 0 1 0 %}
+                    {% for item in campos_data %}
+                        {% if forloop.first %}
+                        {% endif %}
+                    {% endfor %}
+                    {{ total_sistemas_global|default:"-" }}
+                </div>
+                <div class="subtitle">Se calcula por campo</div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="summary-card">
+                <div class="subtitle">Estado general</div>
+                <div class="summary-number">
+                    <i class="bi bi-shield-check text-success"></i>
+                </div>
+                <div class="subtitle">RunLife activo</div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="top-panel" id="campos">
+
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+
+            <div>
+                <h3 class="mb-0">Campos Operativos</h3>
+                <div class="subtitle">
+                    Seleccione un campo para ver KPI, sistemas, componentes y alertas.
+                </div>
+            </div>
+
+        </div>
+
+        <div class="row g-4 justify-content-start">
+
+            {% for item in campos_data %}
+
+                <div class="col-md-6 col-xl-4">
+
+                    <div class="field-card">
+
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+
+                            <div>
+                                <div class="field-name">
+                                    {{ item.campo.nombre }}
+                                </div>
+
+                                <div class="client-name">
+                                    {{ item.campo.cliente.nombre }}
+                                </div>
+                            </div>
+
+                            <span class="badge-status">Activo</span>
+
+                        </div>
+
+                        <hr>
+
+                        <div class="row text-center mb-3">
+
+                            <div class="col-4">
+                                <div class="kpi-number text-primary">
+                                    {{ item.total_sistemas }}
+                                </div>
+                                <div class="kpi-label">Sistemas</div>
+                            </div>
+
+                            <div class="col-4">
+                                <div class="kpi-number text-success">
+                                    {{ item.total_componentes }}
+                                </div>
+                                <div class="kpi-label">Componentes</div>
+                            </div>
+
+                            <div class="col-4">
+                                <div class="kpi-number text-dark">
+                                    {{ item.runlife_promedio }}
+                                </div>
+                                <div class="kpi-label">RunLife</div>
+                            </div>
+
+                        </div>
+
+                        <a href="{% url 'runlife:campo_detail' item.campo.id %}"
+                           class="btn btn-primary btn-main w-100">
+                            <i class="bi bi-box-arrow-in-right"></i>
+                            Entrar al Campo
+                        </a>
+
+                    </div>
+
+                </div>
+
+            {% empty %}
+
+                <div class="col-12">
+                    <div class="empty-card">
+                        <h4>No hay campos asignados</h4>
+                        <p class="text-muted mb-0">
+                            Asigne este usuario a un campo desde el administrador RunLife.
+                        </p>
+                    </div>
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}

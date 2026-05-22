@@ -1,0 +1,17 @@
+{% extends "runlife/base_runlife.html" %}
+{% block title %}RunLife - Reportes{% endblock %}
+{% block content %}
+<div class="main-content">
+    <div class="top-panel"><div class="title-main mb-1">Reportes RunLife</div><div class="subtitle">Resumen de garantías, mantenimiento y componentes activos.</div></div>
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="summary-card"><div class="subtitle">Campos</div><div class="summary-number">{{ total_campos }}</div></div></div>
+        <div class="col-md-3"><div class="summary-card"><div class="subtitle">Componentes activos</div><div class="summary-number">{{ total_componentes }}</div></div></div>
+        <div class="col-md-3"><div class="summary-card"><div class="subtitle">En garantía</div><div class="summary-number text-success">{{ en_garantia|length }}</div></div></div>
+        <div class="col-md-3"><div class="summary-card"><div class="subtitle">Fuera de garantía</div><div class="summary-number text-danger">{{ fuera_garantia|length }}</div></div></div>
+    </div>
+    <div class="row g-3">
+        <div class="col-lg-6"><div class="right-card"><h5>Próximos mantenimientos</h5>{% for c in proximos %}<div class="alert-line"><i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i><div><strong>{{ c.sistema.nombre }} - {{ c.descripcion|default:c.get_tipo_display }}</strong><br><small>{{ c.fecha_proximo_mantenimiento|default:"Sin fecha" }}</small></div></div>{% empty %}<p class="text-muted">Sin próximos mantenimientos.</p>{% endfor %}</div></div>
+        <div class="col-lg-6"><div class="right-card"><h5>Mantenimientos vencidos</h5>{% for c in vencidos %}<div class="alert-line"><i class="bi bi-exclamation-triangle-fill text-danger fs-5"></i><div><strong>{{ c.sistema.nombre }} - {{ c.descripcion|default:c.get_tipo_display }}</strong><br><small>{{ c.fecha_proximo_mantenimiento|default:"Sin fecha" }}</small></div></div>{% empty %}<p class="text-muted">Sin mantenimientos vencidos.</p>{% endfor %}</div></div>
+    </div>
+</div>
+{% endblock %}

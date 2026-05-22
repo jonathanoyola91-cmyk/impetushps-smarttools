@@ -1,0 +1,720 @@
+{% extends "runlife/base_runlife.html" %}
+{% block title %}RunLife - Monitoreo{% endblock %}
+
+{% block content %}
+
+<style>
+
+    /* SCROLL HORIZONTAL PRO */
+.monitoring-scroll {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 10px;
+}
+
+/* FUERZA ANCHO PARA ACTIVAR SCROLL */
+.monitoring-table {
+    min-width: 1500px;
+}
+
+/* OBSERVACIONES LEGIBLES */
+.obs-cell {
+    min-width: 320px;
+    max-width: 500px;
+    white-space: normal !important;
+    line-height: 1.4;
+}
+    .monitor-kpi {
+        min-height: 76px;
+        border-left: 4px solid #e5e7eb;
+    }
+
+    .monitor-kpi.ok {
+        border-left-color: #16a34a;
+    }
+
+    .monitor-kpi.warning {
+        border-left-color: #f59e0b;
+    }
+
+    .monitor-kpi.danger {
+        border-left-color: #dc2626;
+    }
+
+    .monitor-kpi h5 {
+        font-weight: 800;
+        margin-top: 6px;
+    }
+
+    .monitor-kpi small {
+        font-size: 12px;
+    }
+
+    .chart-box {
+        min-height: 430px;
+    }
+
+    .calculo-box {
+        min-height: 430px;
+    }
+
+    .mini-badge {
+        padding: 5px 10px;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .mini-ok {
+        background: #dcfce7;
+        color: #15803d;
+    }
+
+    .mini-alerta {
+        background: #fef3c7;
+        color: #b45309;
+    }
+
+    .mini-critico {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+
+    .table-monitor th {
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    .table-monitor td {
+        font-size: 12px;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    .estado-pill {
+        padding: 8px 30px;
+        border-radius: 999px;
+        font-weight: 800;
+        font-size: 13px;
+        display: inline-block;
+    }
+
+    .estado-normal {
+        background: #16a34a;
+        color: #fff;
+    }
+
+    .estado-down {
+        background: #dc2626;
+        color: #fff;
+    }
+
+    .estado-up {
+        background: #f59e0b;
+        color: #111827;
+    }
+
+    .filter-box {
+        background: #fff;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 16px;
+        box-shadow: 0 2px 10px rgba(15, 23, 42, .06);
+    }
+
+    .system-status {
+        border-radius: 12px;
+        font-weight: 700;
+        padding: 13px 18px;
+        margin-bottom: 16px;
+    }
+
+    .system-status.ok {
+        background: #dcfce7;
+        color: #166534;
+        border: 1px solid #86efac;
+    }
+
+    .system-status.warning {
+        background: #fef3c7;
+        color: #92400e;
+        border: 1px solid #fcd34d;
+    }
+
+    .system-status.danger {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fca5a5;
+    }
+
+    @media(max-width: 768px) {
+        .chart-box,
+        .calculo-box {
+            min-height: auto;
+        }
+    }
+</style>
+
+<div class="main-content">
+
+    <!-- HEADER -->
+    <div class="top-filter d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h3 class="fw-bold mb-1">Monitoreo Operacional</h3>
+            <div class="text-muted">
+                Sistema: <strong>{{ sistema.nombre }}</strong> |
+                Campo: <strong>{{ sistema.campo.nombre }}</strong> |
+                Cliente: <strong>{{ sistema.campo.cliente.nombre }}</strong>
+            </div>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary btn-main" data-bs-toggle="modal" data-bs-target="#modalMonitoreo">
+                <i class="bi bi-plus-lg"></i> Nuevo registro
+            </button>
+            <a href="{% url 'runlife:monitoreo_pdf' sistema.id %}" target="_blank" class="btn btn-outline-danger btn-main">
+                <i class="bi bi-file-earmark-pdf"></i> Reporte PDF
+            </a>
+
+            <a href="{% url 'runlife:sistema_detail' sistema.id %}" class="btn btn-dark btn-main">
+                <i class="bi bi-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
+
+    {% with ultimo=monitoreos.first %}
+
+    <!-- ALERTA GLOBAL -->
+    {% if ultimo %}
+        {% if ultimo.alerta_vibracion == "CRITICO" or ultimo.alerta_temperatura_camara == "CRITICO" or ultimo.alerta_presion == "CRITICO" %}
+            <div class="system-status danger">
+                ⚠️ ALERTA CRÍTICA - Revisar sistema inmediatamente.
+            </div>
+        {% elif ultimo.alerta_vibracion == "ALERTA" or ultimo.alerta_temperatura_camara == "ALERTA" or ultimo.alerta_presion == "ALERTA" %}
+            <div class="system-status warning">
+                ⚠️ Sistema en condición de alerta. Revisar tendencia operacional.
+            </div>
+        {% else %}
+            <div class="system-status ok">
+                ✔ Sistema operando normalmente.
+            </div>
+        {% endif %}
+    {% endif %}
+
+    <!-- KPI DASHBOARD PRO -->
+    <div class="row g-3 mb-3">
+
+        <div class="col-md-2">
+            <div class="card-box text-center monitor-kpi 
+                {% if ultimo.estado_thrust == 'DOWN_THRUST' %}danger
+                {% elif ultimo.estado_thrust == 'UP_THRUST' %}warning
+                {% else %}ok{% endif %}
+            ">
+                <small class="text-muted">Estado Thrust</small>
+                <div class="mt-2">
+                    {% if ultimo.estado_thrust == "DOWN_THRUST" %}
+                        <span class="estado-pill estado-down">DOWN</span>
+                    {% elif ultimo.estado_thrust == "UP_THRUST" %}
+                        <span class="estado-pill estado-up">UP</span>
+                    {% elif ultimo %}
+                        <span class="estado-pill estado-normal">NORMAL</span>
+                    {% else %}
+                        <span class="badge bg-secondary">SIN DATOS</span>
+                    {% endif %}
+                </div>
+                <small class="text-muted d-block mt-2">Condición por caudal</small>
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <div class="card-box text-center monitor-kpi 
+                {% if ultimo.alerta_presion == 'CRITICO' %}danger
+                {% elif ultimo.alerta_presion == 'ALERTA' %}warning
+                {% else %}ok{% endif %}
+            ">
+                <small class="text-muted">Δ Presión</small>
+                <h5>{{ ultimo.diferencial_presion|floatformat:0|default:"-" }} PSI</h5>
+                <small class="text-muted">Descarga - Succión</small>
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <div class="card-box text-center monitor-kpi ok">
+                <small class="text-muted">Caudal Actual</small>
+                <h5 class="text-primary">{{ ultimo.caudal|floatformat:0|default:"-" }} BPD</h5>
+                {% if ultimo.limite_operativo %}
+                    <small class="text-muted">
+                        Rango:
+                        {{ ultimo.limite_operativo.caudal_min|floatformat:0|default:"-" }}
+                        -
+                        {{ ultimo.limite_operativo.caudal_max|floatformat:0|default:"-" }}
+                    </small>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <div class="card-box text-center monitor-kpi ok">
+                <small class="text-muted">Presión Succión</small>
+                <h5>{{ ultimo.presion_succion|floatformat:1|default:"-" }} PSI</h5>
+                {% if ultimo.limite_operativo %}
+                    <small class="text-muted">
+                        {{ ultimo.limite_operativo.presion_succion_min|floatformat:0|default:"-" }}
+                        -
+                        {{ ultimo.limite_operativo.presion_succion_max|floatformat:0|default:"-" }} PSI
+                    </small>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <div class="card-box text-center monitor-kpi ok">
+                <small class="text-muted">Presión Descarga</small>
+                <h5>{{ ultimo.presion_descarga|floatformat:0|default:"-" }} PSI</h5>
+                {% if ultimo.limite_operativo %}
+                    <small class="text-muted">
+                        {{ ultimo.limite_operativo.presion_descarga_min|floatformat:0|default:"-" }}
+                        -
+                        {{ ultimo.limite_operativo.presion_descarga_max|floatformat:0|default:"-" }} PSI
+                    </small>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <div class="card-box text-center monitor-kpi ok">
+                <small class="text-muted">Corriente Motor</small>
+                <h5>{{ ultimo.corriente_motor|floatformat:1|default:"-" }} Amp</h5>
+                <small class="text-muted">Rango normal</small>
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <div class="card-box text-center monitor-kpi 
+                {% if ultimo.alerta_temperatura_camara == 'CRITICO' %}danger
+                {% elif ultimo.alerta_temperatura_camara == 'ALERTA' %}warning
+                {% else %}ok{% endif %}
+            ">
+                <small class="text-muted">Temp. Cámara</small>
+                <h5>
+                    {{ ultimo.temperatura_camara|floatformat:1|default:"-" }} °C
+                </h5>
+                {% if ultimo.limite_operativo %}
+                    <small class="text-muted">
+                        Alerta ≥ {{ ultimo.limite_operativo.temp_alerta|floatformat:0 }}
+                    </small>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <div class="card-box text-center monitor-kpi 
+                {% if ultimo.alerta_vibracion == 'CRITICO' %}danger
+                {% elif ultimo.alerta_vibracion == 'ALERTA' %}warning
+                {% else %}ok{% endif %}
+            ">
+                <small class="text-muted">Vibración Cámara</small>
+                <h5>
+                    {{ ultimo.vibracion_camara|floatformat:1|default:"-" }} mm/s
+                </h5>
+                {% if ultimo.limite_operativo %}
+                    <small class="text-muted">
+                        Alerta ≥ {{ ultimo.limite_operativo.vib_alerta|floatformat:1 }}
+                    </small>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ÚLTIMO REGISTRO -->
+    {% if ultimo %}
+    <div class="card-box card-padding mb-3">
+        <div class="d-flex flex-wrap gap-4">
+            <small>
+                <i class="bi bi-clock"></i>
+                Último registro:
+                <strong>{{ ultimo.fecha }} {{ ultimo.hora }}</strong>
+            </small>
+
+            <small>
+                <i class="bi bi-clipboard-data"></i>
+                Límites operativos aplicados al sistema/campo
+            </small>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- FILTRO POR FECHA -->
+    <div class="filter-box">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small fw-bold">Fecha inicio</label>
+                <input type="date" name="fecha_inicio" class="form-control" value="{{ request.GET.fecha_inicio }}">
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label small fw-bold">Fecha fin</label>
+                <input type="date" name="fecha_fin" class="form-control" value="{{ request.GET.fecha_fin }}">
+            </div>
+
+            <div class="col-md-2">
+                <button class="btn btn-primary w-100">
+                    <i class="bi bi-funnel"></i> Filtrar
+                </button>
+            </div>
+
+            <div class="col-md-2">
+                <a href="?" class="btn btn-light w-100">
+                    Limpiar
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- GRAFICA + PANEL DE CALCULO -->
+    <div class="row g-3 mb-3">
+
+        <div class="col-md-8">
+            <div class="card-box card-padding chart-box">
+                <h5 class="fw-bold mb-3">Tendencia Operacional</h5>
+                <canvas id="chartMonitoreo" height="120"></canvas>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card-box card-padding calculo-box">
+                <h6 class="fw-bold mb-3">¿Cómo se calcula?</h6>
+
+                {% if ultimo %}
+
+                    <small class="text-muted fw-bold">1. Diferencial de Presión</small>
+
+                    <div class="alert alert-light border mt-2 small">
+                        <strong>ΔP = P. Descarga - P. Succión</strong><br>
+                        {{ ultimo.presion_descarga|floatformat:0|default:"-" }} PSI
+                        -
+                        {{ ultimo.presion_succion|floatformat:0|default:"-" }} PSI
+                        =
+                        <strong class="text-success">
+                            {{ ultimo.diferencial_presion|floatformat:0|default:"-" }} PSI
+                        </strong>
+                    </div>
+
+                    <small class="text-muted fw-bold">2. Estado Thrust</small>
+
+                    <ul class="small mt-2">
+                        <li><strong>DOWN:</strong> Caudal menor al límite inferior.</li>
+                        <li><strong>NORMAL:</strong> Caudal dentro del rango operativo.</li>
+                        <li><strong>UP:</strong> Caudal mayor al límite superior.</li>
+                    </ul>
+
+                    {% if ultimo.limite_operativo %}
+                    <div class="alert alert-light border small">
+                        Rango normal de caudal:
+                        <strong>
+                            {{ ultimo.limite_operativo.caudal_min|floatformat:0|default:"-" }}
+                            -
+                            {{ ultimo.limite_operativo.caudal_max|floatformat:0|default:"-" }} BPD
+                        </strong>
+                    </div>
+                    {% endif %}
+
+                    <small class="text-muted fw-bold">3. Alarmas</small>
+
+                    {% if ultimo.limite_operativo %}
+                    <ul class="small mt-2">
+                        <li>Vibración alerta: ≥ {{ ultimo.limite_operativo.vib_alerta|floatformat:1 }} mm/s</li>
+                        <li>Vibración crítica: ≥ {{ ultimo.limite_operativo.vib_critico|floatformat:1 }} mm/s</li>
+                        <li>Temperatura alerta: ≥ {{ ultimo.limite_operativo.temp_alerta|floatformat:0 }} °C</li>
+                        <li>Temperatura crítica: ≥ {{ ultimo.limite_operativo.temp_critico|floatformat:0 }} °C</li>
+                        <li>ΔP alerta: &lt; {{ ultimo.limite_operativo.dp_alerta|floatformat:0 }} PSI</li>
+                    </ul>
+                    {% endif %}
+
+                {% else %}
+                    <p class="text-muted small">No hay registros de monitoreo para calcular indicadores.</p>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+
+    <!-- HISTÓRICO -->
+    <div class="card-box card-padding">
+        <h5 class="fw-bold mb-3">Histórico de monitoreo</h5>
+
+        <div class="table-responsive monitoring-scroll">
+            <table class="table align-middle table-monitor monitoring-table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Hora</th>
+                        <th>Frecuencia</th>
+                        <th>Corriente</th>
+                        <th>Voltaje</th>
+                        <th>KW</th>
+                        <th>P. Succión</th>
+                        <th>P. Descarga</th>
+                        <th>Δ Presión</th>
+                        <th>Caudal</th>
+                        <th>Temp</th>
+                        <th>Vib. Cámara</th>
+                        <th>Thrust</th>
+                        <th>Alerta Vib.</th>
+                        <th>Alerta Temp.</th>
+                        <th>Alerta Presión</th>
+                        <th style="min-width:320px;">Observaciones</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for m in monitoreos %}
+                    <tr>
+                        <td>{{ m.fecha }}</td>
+                        <td>{{ m.hora }}</td>
+                        <td>{{ m.frecuencia|floatformat:1|default:"-" }}</td>
+                        <td>{{ m.corriente_motor|floatformat:1|default:"-" }}</td>
+                        <td>{{ m.voltaje_motor|floatformat:1|default:"-" }}</td>
+                        <td>{{ m.kw|floatformat:1|default:"-" }}</td>
+                        <td>{{ m.presion_succion|floatformat:1|default:"-" }}</td>
+                        <td>{{ m.presion_descarga|floatformat:1|default:"-" }}</td>
+                        <td>{{ m.diferencial_presion|floatformat:0|default:"-" }}</td>
+                        <td>{{ m.caudal|floatformat:0|default:"-" }}</td>
+                        <td>{{ m.temperatura_camara|floatformat:1|default:"-" }}</td>
+                        <td>{{ m.vibracion_camara|floatformat:1|default:"-" }}</td>
+
+                        <td>
+                            {% if m.estado_thrust == "DOWN_THRUST" %}
+                                <span class="mini-badge mini-critico">DOWN</span>
+                            {% elif m.estado_thrust == "UP_THRUST" %}
+                                <span class="mini-badge mini-alerta">UP</span>
+                            {% elif m.estado_thrust == "NORMAL" %}
+                                <span class="mini-badge mini-ok">NORMAL</span>
+                            {% else %}
+                                <span class="mini-badge mini-alerta">{{ m.estado_thrust }}</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if m.alerta_vibracion == "CRITICO" %}
+                                <span class="mini-badge mini-critico">CRÍTICO</span>
+                            {% elif m.alerta_vibracion == "ALERTA" %}
+                                <span class="mini-badge mini-alerta">ALERTA</span>
+                            {% else %}
+                                <span class="mini-badge mini-ok">OK</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if m.alerta_temperatura_camara == "CRITICO" %}
+                                <span class="mini-badge mini-critico">CRÍTICO</span>
+                            {% elif m.alerta_temperatura_camara == "ALERTA" %}
+                                <span class="mini-badge mini-alerta">ALERTA</span>
+                            {% else %}
+                                <span class="mini-badge mini-ok">OK</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if m.alerta_presion == "CRITICO" %}
+                                <span class="mini-badge mini-critico">CRÍTICO</span>
+                            {% elif m.alerta_presion == "ALERTA" %}
+                                <span class="mini-badge mini-alerta">ALERTA</span>
+                            {% else %}
+                                <span class="mini-badge mini-ok">OK</span>
+                            {% endif %}
+                        </td>
+
+                        <td class="obs-cell">
+
+                            {% if m.observaciones %}
+                                <div>
+                                    <strong>Obs:</strong> {{ m.observaciones }}
+                                </div>
+                            {% endif %}
+
+                            {% if m.diagnostico_avanzado %}
+                                <div class="text-muted small mt-1">
+                                    <strong>Diag:</strong> {{ m.diagnostico_avanzado }}
+                                </div>
+                            {% endif %}
+
+                            {% if not m.observaciones and not m.diagnostico_avanzado %}
+        -
+                            {% endif %}
+
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="17" class="text-center text-muted py-4">
+                            Sin registros aún
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- EXPLICACIÓN OPERACIONAL -->
+    <div class="card-box card-padding mt-3">
+        <div class="row g-3">
+
+            <div class="col-md-4">
+                <h6 class="fw-bold">¿Cómo se determina UP / DOWN / NORMAL?</h6>
+                <p class="small mb-2">
+                    Se utiliza el <strong>caudal BPD</strong> comparado con los límites operativos del sistema.
+                </p>
+
+                <div class="d-flex justify-content-between small fw-bold">
+                    <span class="text-danger">DOWN THRUST</span>
+                    <span class="text-success">NORMAL</span>
+                    <span class="text-warning">UP THRUST</span>
+                </div>
+
+                <div class="progress mt-2" style="height: 8px;">
+                    <div class="progress-bar bg-danger" style="width: 33%"></div>
+                    <div class="progress-bar bg-success" style="width: 34%"></div>
+                    <div class="progress-bar bg-warning" style="width: 33%"></div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <h6 class="fw-bold">Ejemplo con el último registro</h6>
+
+                {% if ultimo and ultimo.limite_operativo %}
+                    <ul class="small mb-2">
+                        <li>Caudal = {{ ultimo.caudal|floatformat:0|default:"-" }} BPD</li>
+                        <li>Límite inferior = {{ ultimo.limite_operativo.caudal_min|floatformat:0|default:"-" }} BPD</li>
+                        <li>Límite superior = {{ ultimo.limite_operativo.caudal_max|floatformat:0|default:"-" }} BPD</li>
+                    </ul>
+
+                    <span class="mini-badge 
+                        {% if ultimo.estado_thrust == 'NORMAL' %}mini-ok
+                        {% elif ultimo.estado_thrust == 'DOWN_THRUST' %}mini-critico
+                        {% else %}mini-alerta{% endif %}
+                    ">
+                        THRUST = {{ ultimo.estado_thrust }}
+                    </span>
+                {% else %}
+                    <p class="small text-muted">Sin datos suficientes.</p>
+                {% endif %}
+            </div>
+
+            <div class="col-md-4">
+                <h6 class="fw-bold">Cálculo de Δ Presión</h6>
+
+                {% if ultimo %}
+                    <p class="small mb-0">
+                        ΔP = P. Descarga - P. Succión <br>
+                        ΔP =
+                        {{ ultimo.presion_descarga|floatformat:0|default:"-" }}
+                        -
+                        {{ ultimo.presion_succion|floatformat:0|default:"-" }}
+                        =
+                        <strong class="text-success">
+                            {{ ultimo.diferencial_presion|floatformat:0|default:"-" }} PSI
+                        </strong>
+                    </p>
+                {% else %}
+                    <p class="small text-muted">Sin datos suficientes.</p>
+                {% endif %}
+            </div>
+
+        </div>
+    </div>
+
+    {% endwith %}
+
+</div>
+
+<!-- MODAL FORM -->
+<div class="modal fade" id="modalMonitoreo" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title">Nuevo monitoreo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <form method="post">
+                <div class="modal-body row g-3">
+                    {% csrf_token %}
+
+                    {% for field in form %}
+                        <div class="col-md-3">
+                            <label class="form-label">{{ field.label }}</label>
+                            {{ field }}
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        Guardar monitoreo
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<!-- CHART -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+new Chart(document.getElementById('chartMonitoreo'), {
+    type: 'line',
+    data: {
+        labels: [{% for m in monitoreos reversed %}"{{ m.fecha }} {{ m.hora }}",{% endfor %}],
+        datasets: [
+            {
+                label: 'Caudal (BPD)',
+                data: [{% for m in monitoreos reversed %}{{ m.caudal|default:0 }},{% endfor %}],
+                borderColor: '#2563eb',
+                tension: 0.3,
+                yAxisID: 'y'
+            },
+            {
+                label: 'P. Descarga',
+                data: [{% for m in monitoreos reversed %}{{ m.presion_descarga|default:0 }},{% endfor %}],
+                borderColor: '#ef4444',
+                tension: 0.3,
+                yAxisID: 'y1'
+            },
+            {
+                label: 'P. Succión',
+                data: [{% for m in monitoreos reversed %}{{ m.presion_succion|default:0 }},{% endfor %}],
+                borderColor: '#06b6d4',
+                tension: 0.3,
+                yAxisID: 'y1'
+            },
+            {
+                label: 'Temp',
+                data: [{% for m in monitoreos reversed %}{{ m.temperatura_camara|default:0 }},{% endfor %}],
+                borderColor: '#9333ea',
+                tension: 0.3,
+                yAxisID: 'y2'
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+            y: { position: 'left' },
+            y1: { position: 'right', grid: { drawOnChartArea: false } },
+            y2: { position: 'right', grid: { drawOnChartArea: false } }
+        }
+    }
+});
+</script>
+{% endblock %}

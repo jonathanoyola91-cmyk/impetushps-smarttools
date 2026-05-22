@@ -1,0 +1,77 @@
+{% extends "runlife/base_runlife.html" %}
+{% block title %}RunLife - Límites Operativos{% endblock %}
+
+{% block content %}
+<div class="main-content">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <div class="title-main mb-1">Límites Operativos</div>
+            <div class="text-muted">
+                Configure rangos de alerta para vibración, temperatura y presión diferencial.
+            </div>
+        </div>
+
+        <a href="{% url 'runlife:crear_limite_operativo' %}" class="btn btn-primary btn-main">
+            <i class="bi bi-plus-lg"></i> Nuevo Límite
+        </a>
+    </div>
+
+    <div class="card-box card-padding">
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Cliente</th>
+                        <th>Campo</th>
+                        <th>Nombre</th>
+                        <th>Vib. Alerta</th>
+                        <th>Vib. Crítico</th>
+                        <th>Temp. Alerta</th>
+                        <th>Temp. Crítico</th>
+                        <th>DP Alerta</th>
+                        <th>DP Crítico</th>
+                        <th>Estado</th>
+                        <th class="text-end">Acción</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for l in limites %}
+                        <tr>
+                            <td>{{ l.campo.cliente.nombre }}</td>
+                            <td><strong>{{ l.campo.nombre }}</strong></td>
+                            <td>{{ l.nombre }}</td>
+                            <td>{{ l.vib_alerta }} mm/s</td>
+                            <td>{{ l.vib_critico }} mm/s</td>
+                            <td>{{ l.temp_alerta }} °C</td>
+                            <td>{{ l.temp_critico }} °C</td>
+                            <td>{{ l.dp_alerta }} PSI</td>
+                            <td>{{ l.dp_critico }} PSI</td>
+                            <td>
+                                {% if l.activo %}
+                                    <span class="badge-ok">Activo</span>
+                                {% else %}
+                                    <span class="badge-danger-custom">Inactivo</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a href="{% url 'runlife:editar_limite_operativo' l.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil-square"></i> Modificar
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="11" class="text-center text-muted">
+                                No hay límites operativos creados.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

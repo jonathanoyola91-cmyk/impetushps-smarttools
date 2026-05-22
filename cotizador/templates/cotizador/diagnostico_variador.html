@@ -216,7 +216,33 @@ href="https://wa.me/573173315060?text=Hola necesito soporte para variador códig
 target="_blank">
 Solicitar soporte técnico
 </a>
+<hr style="margin:30px 0;">
 
+<h3>Asistente IA IMPETUS</h3>
+
+<form method="post" action="{% url 'asistente_vsd_ia' %}">
+    {% csrf_token %}
+
+    <input type="hidden" name="marca" value="{{ resultado.marca }}">
+    <input type="hidden" name="codigo" value="{{ resultado.codigo }}">
+
+    <textarea
+        name="pregunta"
+        rows="4"
+        placeholder="Ej: El variador falla al arrancar la bomba y genera sobrecorriente..."
+        style="
+            width:100%;
+            border:1px solid #d1d5db;
+            border-radius:12px;
+            padding:14px;
+            margin-top:12px;
+        "
+    ></textarea>
+
+    <button type="submit" class="btn btn-dark" style="margin-top:14px;">
+        Preguntar al asistente IA
+    </button>
+</form>
 </div>
 
 {% else %}

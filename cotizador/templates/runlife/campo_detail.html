@@ -1,0 +1,368 @@
+{% extends "runlife/base_runlife.html" %}
+{% block title %}RunLife - Campo{% endblock %}
+{% block content %}
+<div class="main-content">
+
+    <div class="top-filter">
+
+        <form method="get" class="row g-3 align-items-end">
+
+            <div class="col-md-3">
+                <label class="form-label">Cliente</label>
+                <input type="text" class="form-control" value="{{ campo.cliente.nombre }}" readonly>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Campo / Locación</label>
+                <input type="text" class="form-control" value="{{ campo.nombre }}" readonly>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Sistema</label>
+                <select name="sistema" class="form-select" onchange="this.form.submit()">
+                    <option value="">Todos los sistemas</option>
+                    {% for s in sistemas_base %}
+                        <option value="{{ s.id }}" {% if sistema_id == s.id|stringformat:"s" %}selected{% endif %}>
+                            {{ s.nombre }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <div class="text-muted small">Última actualización:</div>
+                <strong>{% now "d M Y h:i a" %}</strong>
+            </div>
+
+            <div class="col-md-1 text-end">
+                <a href="{% url 'runlife:campo_detail' campo.id %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </a>
+            </div>
+
+        </form>
+
+    </div>
+
+    <div class="title-main">Dashboard RunLife</div>
+
+    <div class="row g-3 mb-3">
+
+        <div class="col-md-6 col-xl">
+            <div class="kpi-card">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="fs-2 text-primary">
+                        <i class="bi bi-server"></i>
+                    </div>
+                    <div>
+                        <div class="kpi-label">Sistemas Activos</div>
+                        <div class="kpi-number">{{ sistemas|length }}</div>
+                        <div class="kpi-subtitle">Total sistemas</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl">
+            <div class="kpi-card">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="fs-2 text-warning">
+                        <i class="bi bi-wrench"></i>
+                    </div>
+                    <div>
+                        <div class="kpi-label">Próximos a Mantenimiento</div>
+                        <div class="kpi-number">{{ proximos|length }}</div>
+                        <div class="kpi-subtitle">Requieren seguimiento</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl">
+            <div class="kpi-card">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="fs-2 text-danger">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                    </div>
+                    <div>
+                        <div class="kpi-label">Mantenimientos Vencidos</div>
+                        <div class="kpi-number">{{ vencidos|length }}</div>
+                        <div class="kpi-subtitle">Requieren atención</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl">
+            <div class="kpi-card">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="fs-2 text-danger">
+                        <i class="bi bi-shield-x"></i>
+                    </div>
+                    <div>
+                        <div class="kpi-label">Garantía Vencida</div>
+                        <div class="kpi-number">{{ fuera_garantia|length }}</div>
+                        <div class="kpi-subtitle">Más de 365 días</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl">
+            <div class="kpi-card">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="fs-2 text-success">
+                        <i class="bi bi-graph-up-arrow"></i>
+                    </div>
+                    <div>
+                        <div class="kpi-label">RunLife Promedio</div>
+                        <div class="kpi-number">{{ runlife_promedio }}</div>
+                        <div class="kpi-subtitle">Días promedio</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="row g-3">
+
+        <div class="col-xl-8">
+
+            <div class="card-box card-padding">
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="mb-0">Sistemas de Inyección</h4>
+
+                    <a href="{% url 'runlife:crear_sistema' %}?campo={{ campo.id }}" class="btn btn-primary btn-main">
+                        <i class="bi bi-plus-lg"></i>
+                        Nuevo Sistema
+                    </a>
+                </div>
+
+                {% for sistema in sistemas %}
+
+                    <div class="system-header">
+    <div class="d-flex justify-content-between align-items-center flex-wrap">
+
+        <!-- IZQUIERDA -->
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+
+            <strong>
+                <i class="bi bi-chevron-down me-2"></i>
+                {{ sistema.nombre }}
+            </strong>
+
+            <span class="badge-ok">Activo</span>
+
+            <small>Pozo: {{ sistema.pozo|default:"-" }}</small>
+
+            <small>Instalación: {{ sistema.fecha_instalacion|default:"-" }}</small>
+
+        </div>
+
+        <!-- DERECHA -->
+        <div>
+            <a href="{% url 'runlife:sistema_detail' sistema.id %}" 
+               class="btn btn-sm btn-primary">
+                <i class="bi bi-file-earmark-text"></i>
+                Ver sistema
+            </a>
+            <a href="{% url 'runlife:monitoreo' sistema.id %}" 
+                class="btn btn-sm btn-success ms-1">
+                 <i class="bi bi-activity"></i>
+                 Monitoreo
+            </a>
+        </div>
+
+    </div>
+</div>
+
+                    <div class="system-body">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Componente</th>
+                                    <th>Serial Actual</th>
+                                    <th>Modelo</th>
+                                    <th>Parte Número</th>
+                                    <th>Fecha Instalación</th>
+                                    <th>RunLife</th>
+                                    <th>Próximo Mantenimiento</th>
+                                    <th>Estado mantenimiento</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                {% for c in sistema.componentes.all %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ c.descripcion|default:c.get_tipo_display }}</strong>
+                                        </td>
+
+                                        <td>{{ c.serial }}</td>
+
+                                        <td>{{ c.modelo|default:"-" }}</td>
+
+                                        <td>{{ c.parte_numero|default:"-" }}</td>
+
+                                        <td>{{ c.fecha_instalacion|default:"-" }}</td>
+
+                                        <td>
+                                            {% if c.runlife_dias > 365 %}
+                                                <span class="runlife-danger">
+                                                    {{ c.runlife_dias }} días
+                                                </span>
+                                                <br>
+                                                <small class="text-danger">Fuera de garantía</small>
+                                            {% else %}
+                                                <span class="runlife-ok">
+                                                    {{ c.runlife_dias }} días
+                                                </span>
+                                                <br>
+                                                <small class="text-success">En garantía</small>
+                                            {% endif %}
+                                        </td>
+
+                                        <td>
+                                            {{ c.fecha_proximo_mantenimiento|default:"-" }}
+                                        </td>
+
+                                        <td>
+                                            {% if c.estado_mantenimiento == "VENCIDO" %}
+                                                <span class="badge-danger-custom">Mantenimiento vencido</span>
+                                            {% elif c.estado_mantenimiento == "PROXIMO" %}
+                                                <span class="badge-warning">Próximo mantenimiento</span>
+                                            {% else %}
+                                                <span class="badge-ok">Mantenimiento OK</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="8" class="text-center text-muted">
+                                            Sin componentes activos para este sistema.
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                {% empty %}
+
+                    <div class="alert alert-light border">
+                        No hay sistemas activos para este campo.
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+        </div>
+
+        <div class="col-xl-4">
+
+            <div class="right-card">
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Alertas de Mantenimiento</h5>
+                </div>
+
+                {% for c in vencidos %}
+                    <div class="alert-line">
+                        <i class="bi bi-exclamation-triangle-fill text-danger fs-5"></i>
+                        <div>
+                            <strong>{{ c.sistema.nombre }} - {{ c.descripcion|default:c.get_tipo_display }}</strong><br>
+                            <span class="text-danger">Mantenimiento vencido</span>
+                        </div>
+                    </div>
+                {% endfor %}
+
+                {% for c in proximos %}
+                    <div class="alert-line">
+                        <i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
+                        <div>
+                            <strong>{{ c.sistema.nombre }} - {{ c.descripcion|default:c.get_tipo_display }}</strong><br>
+                            <span class="text-muted">Próximo mantenimiento</span>
+                        </div>
+                    </div>
+                {% endfor %}
+
+                {% if not vencidos and not proximos %}
+                    <p class="text-muted mb-0">No hay alertas de mantenimiento.</p>
+                {% endif %}
+
+            </div>
+
+            <div class="right-card">
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Últimos Cambios de Componentes</h5>
+                </div>
+
+                {% for h in cambios %}
+                    <div class="history-line">
+                        <strong>
+                            {{ h.sistema.nombre }} -
+                            {{ h.componente_nuevo.descripcion|default:h.componente_nuevo.get_tipo_display }}
+                        </strong><br>
+
+                        {{ h.componente_anterior.serial }}
+                        →
+                        {{ h.componente_nuevo.serial }}<br>
+
+                        <small class="text-muted">
+                            {{ h.fecha_cambio }} · RunLife: {{ h.runlife_anterior_dias }} días
+                        </small>
+                    </div>
+                {% empty %}
+                    <p class="text-muted mb-0">No hay historial de cambios.</p>
+                {% endfor %}
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="bottom-summary">
+
+        <div class="row text-center">
+
+            <div class="col-md summary-item">
+                <div class="text-muted small">Total Componentes</div>
+                <div class="fs-3 fw-bold text-primary">{{ total_componentes }}</div>
+                <div class="text-muted small">Activos</div>
+            </div>
+
+            <div class="col-md summary-item">
+                <div class="text-muted small">En Garantía</div>
+                <div class="fs-3 fw-bold text-success">{{ en_garantia|length }}</div>
+                <div class="text-muted small">&lt;= 365 días</div>
+            </div>
+
+            <div class="col-md summary-item">
+                <div class="text-muted small">Fuera de Garantía</div>
+                <div class="fs-3 fw-bold text-danger">{{ fuera_garantia|length }}</div>
+                <div class="text-muted small">&gt; 365 días</div>
+            </div>
+
+            <div class="col-md summary-item">
+                <div class="text-muted small">Próximo Mantenimiento</div>
+                <div class="fs-3 fw-bold text-warning">{{ proximos|length }}</div>
+                <div class="text-muted small">Revisar alertas</div>
+            </div>
+
+            <div class="col-md summary-item">
+                <div class="text-muted small">Mantenimientos Vencidos</div>
+                <div class="fs-3 fw-bold text-danger">{{ vencidos|length }}</div>
+                <div class="text-muted small">Atención requerida</div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}

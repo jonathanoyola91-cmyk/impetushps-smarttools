@@ -1,0 +1,59 @@
+{% extends "runlife/base_runlife.html" %}
+{% block title %}RunLife - Límite Operativo{% endblock %}
+
+{% block content %}
+<div class="main-content">
+
+    <div class="mb-3">
+        <a href="{% url 'runlife:limites_operativos' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver a límites
+        </a>
+    </div>
+
+    <div class="card-box card-padding">
+        <div class="title-main mb-1">
+            {% if limite %}Modificar límite operativo{% else %}Nuevo límite operativo{% endif %}
+        </div>
+
+        <div class="text-muted mb-4">
+            Configure los valores límite que usará el monitoreo para marcar OK, Alerta o Crítico.
+        </div>
+
+        <form method="post" class="row g-3">
+            {% csrf_token %}
+
+            {% for field in form %}
+                <div class="col-md-4">
+                    <label class="form-label">{{ field.label }}</label>
+                    {{ field }}
+
+                    {% if field.help_text %}
+                        <small class="text-muted">{{ field.help_text }}</small>
+                    {% endif %}
+
+                    {% for error in field.errors %}
+                        <div class="text-danger small">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+
+            <div class="col-12">
+                <div class="help-card">
+                    <strong>Referencia:</strong>
+                    Vibración en mm/s, temperatura en °C y presión diferencial en PSI.
+                </div>
+            </div>
+
+            <div class="col-12 text-end">
+                <a href="{% url 'runlife:limites_operativos' %}" class="btn btn-light btn-main">
+                    Cancelar
+                </a>
+                <button type="submit" class="btn btn-primary btn-main">
+                    <i class="bi bi-save"></i> Guardar límite
+                </button>
+            </div>
+        </form>
+    </div>
+
+</div>
+{% endblock %}

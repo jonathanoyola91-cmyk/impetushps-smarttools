@@ -1,0 +1,89 @@
+{% extends "runlife/base_runlife.html" %}
+{% block title %}RunLife - Nuevo Sistema{% endblock %}
+{% block content %}
+<div class="main-content">
+
+    <div class="mb-3">
+        {% if campo_inicial %}
+            <a href="{% url 'runlife:campo_detail' campo_inicial.id %}" class="btn btn-dark fw-bold">
+                <i class="bi bi-arrow-left"></i> Volver al campo
+            </a>
+        {% else %}
+            <a href="{% url 'runlife:dashboard' %}" class="btn btn-dark fw-bold">
+                <i class="bi bi-arrow-left"></i> Volver al dashboard
+            </a>
+        {% endif %}
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="card-box card-padding">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+            <div>
+                <div class="title-main mb-1">Nuevo sistema de inyección</div>
+                <div class="text-muted">
+                    Cree un sistema dentro de los campos operativos asignados al usuario.
+                </div>
+            </div>
+            {% if campo_inicial %}
+                <span class="badge-ok">{{ campo_inicial.cliente.nombre }} / {{ campo_inicial.nombre }}</span>
+            {% endif %}
+        </div>
+
+        <form method="post" class="row g-3">
+            {% csrf_token %}
+
+            {% for field in form %}
+                <div class="col-md-6">
+                    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}
+                        <div class="form-text">{{ field.help_text }}</div>
+                    {% endif %}
+                    {% for error in field.errors %}
+                        <div class="text-danger small">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+
+            {% if form.non_field_errors %}
+                <div class="col-12">
+                    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                </div>
+            {% endif %}
+
+            <div class="col-12">
+                <div class="alert alert-light border mb-0">
+                    <strong>Control de acceso:</strong> el usuario solo podrá guardar sistemas en los campos operativos que tiene asignados.
+                </div>
+            </div>
+
+            <div class="col-12 text-end">
+                {% if campo_inicial %}
+                    <a href="{% url 'runlife:campo_detail' campo_inicial.id %}" class="btn btn-light btn-main">Cancelar</a>
+                {% else %}
+                    <a href="{% url 'runlife:dashboard' %}" class="btn btn-light btn-main">Cancelar</a>
+                {% endif %}
+                <button type="submit" class="btn btn-primary btn-main">
+                    <i class="bi bi-save"></i> Guardar sistema
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.querySelectorAll('input, select, textarea').forEach(function(el){
+        if(!el.classList.contains('form-check-input')) el.classList.add('form-control');
+        if(el.tagName === 'SELECT') { el.classList.remove('form-control'); el.classList.add('form-select'); }
+        if(el.type === 'checkbox') { el.classList.remove('form-control'); el.classList.add('form-check-input'); }
+    });
+</script>
+{% endblock %}

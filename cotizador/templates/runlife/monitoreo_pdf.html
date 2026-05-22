@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte Monitoreo</title>
+
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 16px;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 9px;
+            color: #111827;
+        }
+
+        h1 {
+            font-size: 18px;
+            margin-bottom: 4px;
+        }
+
+        h2 {
+            font-size: 13px;
+            margin-top: 12px;
+            margin-bottom: 6px;
+            color: #0f172a;
+        }
+
+        .header {
+            border-bottom: 2px solid #0f172a;
+            padding-bottom: 7px;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 10px;
+            color: #374151;
+        }
+
+        .kpi-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 4px;
+            margin-bottom: 8px;
+        }
+
+        .kpi {
+            border: 1px solid #d1d5db;
+            border-left: 4px solid #16a34a;
+            padding: 6px;
+            text-align: center;
+            height: 48px;
+        }
+
+        .kpi-title {
+            font-size: 8px;
+            color: #374151;
+            margin-bottom: 4px;
+        }
+
+        .kpi-value {
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .normal {
+            color: #15803d;
+            font-weight: bold;
+        }
+
+        .alerta {
+            color: #b45309;
+            font-weight: bold;
+        }
+
+        .critico {
+            color: #b91c1c;
+            font-weight: bold;
+        }
+
+        .info-box {
+            border: 1px solid #d1d5db;
+            background: #f9fafb;
+            padding: 7px;
+            margin-bottom: 8px;
+            font-size: 9px;
+        }
+
+        .chart-box {
+            border: 1px solid #d1d5db;
+            padding: 5px;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .chart-box img {
+            width: 100%;
+            height: auto;
+        }
+
+        table.data {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 5px;
+        }
+
+        table.data th {
+            background: #e5e7eb;
+            border: 1px solid #9ca3af;
+            padding: 4px;
+            font-size: 7px;
+            text-align: center;
+        }
+
+        table.data td {
+            border: 1px solid #d1d5db;
+            padding: 4px;
+            font-size: 7px;
+            text-align: center;
+        }
+
+        .obs-cell {
+            text-align: left;
+            width: 140px;
+        }
+
+        .footer {
+            margin-top: 10px;
+            font-size: 7px;
+            color: #6b7280;
+            border-top: 1px solid #d1d5db;
+            padding-top: 5px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="header">
+    <h1>Reporte de Monitoreo Operacional</h1>
+    <div class="subtitle">
+        Sistema: <strong>{{ sistema.nombre }}</strong> |
+        Campo: <strong>{{ sistema.campo.nombre }}</strong> |
+        Cliente: <strong>{{ sistema.campo.cliente.nombre }}</strong>
+    </div>
+</div>
+
+{% if ultimo %}
+
+<table class="kpi-table">
+    <tr>
+        <td class="kpi">
+            <div class="kpi-title">Estado Thrust</div>
+            <div class="kpi-value">
+                {% if ultimo.estado_thrust == "DOWN_THRUST" %}
+                    <span class="critico">DOWN</span>
+                {% elif ultimo.estado_thrust == "UP_THRUST" %}
+                    <span class="alerta">UP</span>
+                {% else %}
+                    <span class="normal">NORMAL</span>
+                {% endif %}
+            </div>
+        </td>
+
+        <td class="kpi">
+            <div class="kpi-title">Δ Presión</div>
+            <div class="kpi-value">{{ ultimo.diferencial_presion|floatformat:0|default:"-" }} PSI</div>
+        </td>
+
+        <td class="kpi">
+            <div class="kpi-title">Caudal</div>
+            <div class="kpi-value">{{ ultimo.caudal|floatformat:0|default:"-" }} BPD</div>
+        </td>
+
+        <td class="kpi">
+            <div class="kpi-title">P. Succión</div>
+            <div class="kpi-value">{{ ultimo.presion_succion|floatformat:1|default:"-" }} PSI</div>
+        </td>
+
+        <td class="kpi">
+            <div class="kpi-title">P. Descarga</div>
+            <div class="kpi-value">{{ ultimo.presion_descarga|floatformat:0|default:"-" }} PSI</div>
+        </td>
+
+        <td class="kpi">
+            <div class="kpi-title">Temp. Cámara</div>
+            <div class="kpi-value">{{ ultimo.temperatura_camara|floatformat:1|default:"-" }} °C</div>
+        </td>
+
+        <td class="kpi">
+            <div class="kpi-title">Vib. Cámara</div>
+            <div class="kpi-value">{{ ultimo.vibracion_camara|floatformat:1|default:"-" }} mm/s</div>
+        </td>
+    </tr>
+</table>
+
+<div class="info-box">
+    <strong>Último registro:</strong> {{ ultimo.fecha }} {{ ultimo.hora }}<br>
+    <strong>Cálculo ΔP:</strong>
+    {{ ultimo.presion_descarga|floatformat:0|default:"-" }} PSI -
+    {{ ultimo.presion_succion|floatformat:0|default:"-" }} PSI =
+    <strong>{{ ultimo.diferencial_presion|floatformat:0|default:"-" }} PSI</strong><br>
+    <strong>Condición:</strong> {{ ultimo.estado_thrust }}
+</div>
+
+{% endif %}
+
+{% if grafica_base64 %}
+<h2>Curva de Tendencia Operacional</h2>
+<div class="chart-box">
+    <img src="data:image/png;base64,{{ grafica_base64 }}">
+</div>
+{% endif %}
+
+<h2>Histórico de monitoreo</h2>
+
+<table class="data">
+    <thead>
+        <tr>
+            <th>Fecha</th>
+            <th>Hora</th>
+            <th>Hz</th>
+            <th>Amp</th>
+            <th>Volt</th>
+            <th>KW</th>
+            <th>P. Suc.</th>
+            <th>P. Desc.</th>
+            <th>ΔP</th>
+            <th>Caudal</th>
+            <th>Temp</th>
+            <th>Vib. Cam.</th>
+            <th>Thrust</th>
+            <th>Vib.</th>
+            <th>Temp.</th>
+            <th>Presión</th>
+            <th>Obs.</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for m in monitoreos %}
+        <tr>
+            <td>{{ m.fecha }}</td>
+            <td>{{ m.hora }}</td>
+            <td>{{ m.frecuencia|floatformat:1|default:"-" }}</td>
+            <td>{{ m.corriente_motor|floatformat:1|default:"-" }}</td>
+            <td>{{ m.voltaje_motor|floatformat:1|default:"-" }}</td>
+            <td>{{ m.kw|floatformat:1|default:"-" }}</td>
+            <td>{{ m.presion_succion|floatformat:1|default:"-" }}</td>
+            <td>{{ m.presion_descarga|floatformat:1|default:"-" }}</td>
+            <td>{{ m.diferencial_presion|floatformat:0|default:"-" }}</td>
+            <td>{{ m.caudal|floatformat:0|default:"-" }}</td>
+            <td>{{ m.temperatura_camara|floatformat:1|default:"-" }}</td>
+            <td>{{ m.vibracion_camara|floatformat:1|default:"-" }}</td>
+            <td>{{ m.estado_thrust|default:"-" }}</td>
+            <td>{{ m.alerta_vibracion|default:"-" }}</td>
+            <td>{{ m.alerta_temperatura_camara|default:"-" }}</td>
+            <td>{{ m.alerta_presion|default:"-" }}</td>
+            <td class="obs-cell">
+                {{ m.observaciones|default:m.diagnostico_avanzado }}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="17">Sin registros de monitoreo.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>Observaciones Operacionales</h2>
+
+<table class="data">
+    <thead>
+        <tr>
+            <th style="width: 90px;">Fecha</th>
+            <th style="width: 70px;">Hora</th>
+            <th style="width: 90px;">Condición</th>
+            <th>Observación</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for m in monitoreos %}
+            {% if m.observaciones or m.observacion_auto_promedio %}
+            <tr>
+                <td>{{ m.fecha }}</td>
+                <td>{{ m.hora }}</td>
+                <td>{{ m.estado_thrust }}</td>
+                <td class="obs-cell">
+                    {{ m.observaciones|default:m.diagnostico_avanzado }}
+                </td>
+            </tr>
+            {% endif %}
+        {% empty %}
+        <tr>
+            <td colspan="4">Sin observaciones registradas.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="footer">
+    Reporte generado automáticamente desde RunLife / Smart Tools IMPETUS.
+</div>
+
+</body>
+</html>

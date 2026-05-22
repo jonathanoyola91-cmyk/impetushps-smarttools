@@ -1,0 +1,90 @@
+{% extends "runlife/base_runlife.html" %}
+
+{% block title %}Reglas de Mantenimiento{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+            <div class="title-main mb-1">Reglas de Mantenimiento</div>
+            <div class="text-muted">
+                Configure cada cuánto se debe realizar mantenimiento por tipo de componente.
+            </div>
+        </div>
+
+        {% if puede_reglas or puede_gestionar_reglas or request.user.is_staff or request.user.is_superuser %}
+            <a href="{% url 'runlife:crear_regla' %}" class="btn btn-primary btn-main">
+                <i class="bi bi-plus-lg"></i> Nueva Regla
+            </a>
+        {% endif %}
+    </div>
+
+    <div class="card-box card-padding">
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Tipo componente</th>
+                        <th>Cliente</th>
+                        <th>Campo</th>
+                        <th>Horas</th>
+                        <th>Días</th>
+                        <th>Alerta</th>
+                        <th>Estado</th>
+                        <th class="text-end">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in reglas %}
+                        <tr>
+                            <td><strong>{{ r.get_tipo_display }}</strong></td>
+                            <td>{{ r.cliente.nombre|default:"General" }}</td>
+                            <td>{{ r.campo.nombre|default:"General" }}</td>
+                            <td>{{ r.horas_mantenimiento }} h</td>
+                            <td>
+                                {% if r.dias_mantenimiento %}
+                                    {{ r.dias_mantenimiento }} días
+                                {% else %}
+                                    {{ r.horas_mantenimiento|floatformat:0 }} h / 24
+                                {% endif %}
+                            </td>
+                            <td>{{ r.alerta_porcentaje }}%</td>
+                            <td>
+                                {% if r.activo %}
+                                    <span class="badge-ok">Activa</span>
+                                {% else %}
+                                    <span class="badge-danger-custom">Inactiva</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% if puede_reglas or puede_gestionar_reglas or request.user.is_staff or request.user.is_superuser %}
+                                    <a href="{% url 'runlife:editar_regla' r.id %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-pencil-square"></i> Modificar
+                                    </a>
+                                {% else %}
+                                    <small class="text-muted">Solo lectura</small>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">
+                                No hay reglas creadas.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

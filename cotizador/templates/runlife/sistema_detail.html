@@ -1,0 +1,299 @@
+{% extends "runlife/base_runlife.html" %}
+{% block title %}RunLife - Sistema{% endblock %}
+{% block content %}
+<div class="main-content">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="top-filter">
+        <div class="row g-3 align-items-end">
+            <div class="row mt-2">
+                <div class="col-12">
+                    <a href="{% url 'runlife:campo_detail' sistema.campo.id %}" 
+                       class="btn btn-dark fw-bold">
+                        <i class="bi bi-arrow-left"></i> Volver a sistemas
+                    </a>
+                 </div>
+            </div>
+            <div class="col-md-3"><label class="form-label">Cliente</label><input type="text" class="form-control" value="{{ sistema.campo.cliente.nombre }}" readonly></div>
+            <div class="col-md-3"><label class="form-label">Campo / Locación</label><input type="text" class="form-control" value="{{ sistema.campo.nombre }}" readonly></div>
+            <div class="col-md-3"><label class="form-label">Sistema</label><input type="text" class="form-control" value="{{ sistema.nombre }}" readonly></div>
+            <div class="col-md-2"><div class="text-muted small">Última actualización:</div><strong>{% now "d M Y h:i a" %}</strong></div>
+            
+        </div>
+    </div>
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <div class="title-main mb-0">Hoja de Vida del Sistema</div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary btn-main" data-bs-toggle="modal" data-bs-target="#modalSistema"><i class="bi bi-pencil-square"></i> Actualizar sistema</button>
+            <button class="btn btn-primary btn-main" data-bs-toggle="modal" data-bs-target="#modalReemplazo"><i class="bi bi-arrow-repeat"></i> Reemplazar componente</button>
+            <button class="btn btn-success btn-main" data-bs-toggle="modal" data-bs-target="#modalAgregarComponente">
+                <i class="bi bi-plus-circle"></i> Agregar componente
+            </button>
+            <a href="{% url 'runlife:monitoreo' sistema.id %}" class="btn btn-info btn-main text-white">
+                <i class="bi bi-activity"></i> Monitoreo
+            </a>
+        </div>
+    </div>
+
+    <div class="system-title-card">
+        <div class="row align-items-center g-3">
+            <div class="col-lg-7">
+                <h3 class="fw-black mb-1">{{ sistema.nombre }}</h3>
+                <div>Cliente: <strong>{{ sistema.campo.cliente.nombre }}</strong> | Campo: <strong>{{ sistema.campo.nombre }}</strong> | Pozo: <strong>{{ sistema.pozo|default:"-" }}</strong></div>
+                <div class="mini-muted mt-1">Instalación sistema: {{ sistema.fecha_instalacion|default:"-" }}</div>
+            </div>
+            <div class="col-lg-5 text-lg-end">
+                <span class="badge-ok me-1">{{ total_componentes }} activos</span>
+                <span class="badge-warning me-1">{{ proximos|length }} próximos</span>
+                <span class="badge-danger-custom">{{ vencidos|length }} vencidos</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-3"><div class="kpi-card"><div class="kpi-label">Componentes Activos</div><div class="kpi-number text-primary">{{ total_componentes }}</div><div class="kpi-subtitle">Instalados actualmente</div></div></div>
+        <div class="col-md-3"><div class="kpi-card"><div class="kpi-label">En Garantía</div><div class="kpi-number text-success">{{ en_garantia|length }}</div><div class="kpi-subtitle">Menor o igual a 365 días</div></div></div>
+        <div class="col-md-3"><div class="kpi-card"><div class="kpi-label">Fuera de Garantía</div><div class="kpi-number text-danger">{{ fuera_garantia|length }}</div><div class="kpi-subtitle">Mayor a 365 días</div></div></div>
+        <div class="col-md-3"><div class="kpi-card"><div class="kpi-label">Alertas Mantenimiento</div><div class="kpi-number text-warning">{{ proximos|length|add:vencidos|length }}</div><div class="kpi-subtitle">Próximos + vencidos</div></div></div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-xl-8">
+            <div class="card-box card-padding">
+                <div class="d-flex justify-content-between align-items-center mb-3"><h4 class="mb-0 section-title">Componentes Activos</h4></div>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead><tr><th>Componente</th><th>Serial Actual</th><th>Modelo</th><th>Parte Número</th><th>Fecha Instalación</th><th>Último Mantenimiento</th><th>RunLife</th><th>Próximo Mantenimiento</th><th>Estado mantenimiento</th><th>Acción</th></tr></thead>
+                        <tbody>
+                            {% for c in componentes_activos %}
+                                <tr>
+                                    <td><strong>{{ c.descripcion|default:c.get_tipo_display }}</strong></td>
+                                    <td>{{ c.serial }}</td><td>{{ c.modelo|default:"-" }}</td><td>{{ c.parte_numero|default:"-" }}</td><td>{{ c.fecha_instalacion|default:"-" }}</td>
+                                    <td>
+                                        {% if c.fecha_ultimo_mantenimiento %}
+                                            {{ c.fecha_ultimo_mantenimiento }}
+                                        {% else %}
+                                            <span class="text-muted">Sin registrar</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{% if c.runlife_dias > 365 %}<span class="runlife-danger">{{ c.runlife_dias }} días</span><br><small class="text-danger">Fuera de garantía</small>{% else %}<span class="runlife-ok">{{ c.runlife_dias }} días</span><br><small class="text-success">En garantía</small>{% endif %}</td>
+                                    <td>
+                                        {% if c.regla_mantenimiento %}
+                                            {{ c.fecha_proximo_mantenimiento|default:"-" }}
+                                            <br><small class="text-muted">Regla: cada {{ c.dias_regla_mantenimiento }} días</small>
+                                        {% else %}
+                                            <span class="badge-danger-custom">Sin regla</span>
+                                            <br><small class="text-danger">Crear regla para {{ c.get_tipo_display }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if c.estado_mantenimiento == "SIN_REGLA" %}
+                                            <span class="badge-danger-custom">Sin regla configurada</span>
+                                        {% elif c.estado_mantenimiento == "VENCIDO" %}
+                                            <span class="badge-danger-custom">Mantenimiento vencido</span>
+                                        {% elif c.estado_mantenimiento == "PROXIMO" %}
+                                            <span class="badge-warning">Próximo mantenimiento</span>
+                                        {% elif c.estado_mantenimiento == "SIN_FECHA" %}
+                                            <span class="badge-warning">Sin fecha base</span>
+                                        {% else %}
+                                            <span class="badge-ok">Mantenimiento OK</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#mant{{ c.id }}"><i class="bi bi-calendar-check"></i></button></td>
+                                </tr>
+                            {% empty %}
+                                <tr><td colspan="10" class="text-center text-muted">Sin componentes activos para este sistema.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card-box card-padding">
+                <h4 class="section-title">Componentes Históricos</h4>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead><tr><th>Componente</th><th>Serial</th><th>Modelo</th><th>Instalación</th><th>Desinstalación</th><th>RunLife Final</th></tr></thead>
+                        <tbody>
+                            {% for c in componentes_historicos %}
+                                <tr><td><strong>{{ c.descripcion|default:c.get_tipo_display }}</strong></td><td>{{ c.serial }}</td><td>{{ c.modelo|default:"-" }}</td><td>{{ c.fecha_instalacion|default:"-" }}</td><td>{{ c.fecha_desinstalacion|default:"-" }}</td><td>{{ c.runlife_dias }} días</td></tr>
+                            {% empty %}
+                                <tr><td colspan="6" class="text-center text-muted">Aún no hay componentes históricos.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="right-card">
+                <h5 class="mb-3">Alertas de Mantenimiento</h5>
+                {% for c in vencidos %}<div class="alert-line"><i class="bi bi-exclamation-triangle-fill text-danger fs-5"></i><div><strong>{{ c.descripcion|default:c.get_tipo_display }}</strong><br><span class="text-danger">Mantenimiento vencido</span><br><small>{{ c.fecha_proximo_mantenimiento|default:"Sin fecha" }}</small></div></div>{% endfor %}
+                {% for c in proximos %}<div class="alert-line"><i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i><div><strong>{{ c.descripcion|default:c.get_tipo_display }}</strong><br><span class="text-muted">Próximo mantenimiento</span><br><small>{{ c.fecha_proximo_mantenimiento|default:"Sin fecha" }}</small></div></div>{% endfor %}
+                {% if not vencidos and not proximos %}<p class="text-muted mb-0">No hay alertas de mantenimiento.</p>{% endif %}
+            </div>
+
+            <div class="right-card">
+                <h5 class="mb-3">Historial Organizado de Cambios</h5>
+                <div class="timeline">
+                    {% for h in historial_cambios %}
+                        <div class="timeline-item">
+                            <strong>{{ h.componente_nuevo.descripcion|default:h.componente_nuevo.get_tipo_display }}</strong><br>
+                            <small class="text-muted">{{ h.fecha_cambio }} · RunLife anterior: {{ h.runlife_anterior_dias }} días</small>
+                            <div class="mt-2"><span class="text-danger">{{ h.componente_anterior.serial }}</span> <i class="bi bi-arrow-right"></i> <span class="text-success">{{ h.componente_nuevo.serial }}</span></div>
+                            {% if h.motivo_cambio %}<div class="mini-muted mt-1">Motivo: {{ h.motivo_cambio }}</div>{% endif %}
+                            {% if h.creado_por %}<div class="mini-muted">Registrado por: {{ h.creado_por.username }}</div>{% endif %}
+                        </div>
+                    {% empty %}
+                        <p class="text-muted mb-0">No hay historial de cambios.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalSistema" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" class="modal-content">
+            {% csrf_token %}<input type="hidden" name="accion" value="actualizar_sistema">
+            <div class="modal-header"><h5 class="modal-title">Actualizar sistema</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="mb-3"><label class="form-label">Nombre del sistema</label><input type="text" name="nombre" class="form-control" value="{{ sistema.nombre }}" required></div>
+                <div class="mb-3"><label class="form-label">Pozo</label><input type="text" name="pozo" class="form-control" value="{{ sistema.pozo|default:'' }}"></div>
+                <div class="mb-3"><label class="form-label">Fecha instalación sistema</label><input type="date" name="fecha_instalacion" class="form-control" value="{{ sistema.fecha_instalacion|date:'Y-m-d' }}"></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Guardar cambios</button></div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="modalReemplazo" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <form method="post" class="modal-content">
+            {% csrf_token %}<input type="hidden" name="accion" value="reemplazar_componente">
+            <div class="modal-header"><h5 class="modal-title">Reemplazar componente</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label">Componente actual</label><select name="componente_actual" class="form-select" required>{% for c in componentes_activos %}<option value="{{ c.id }}">{{ c.descripcion|default:c.get_tipo_display }} - {{ c.serial }}</option>{% endfor %}</select></div>
+                    <div class="col-md-6"><label class="form-label">Fecha de cambio / instalación nuevo</label><input type="date" name="fecha_cambio" class="form-control" required></div>
+                    <div class="col-md-4"><label class="form-label">Nuevo serial</label><input type="text" name="nuevo_serial" class="form-control" required></div>
+                    <div class="col-md-4"><label class="form-label">Nuevo modelo</label><input type="text" name="nuevo_modelo" class="form-control"></div>
+                    <div class="col-md-4"><label class="form-label">Nuevo parte número</label><input type="text" name="nuevo_parte" class="form-control"></div>
+                    <div class="col-12"><label class="form-label">Motivo / observación</label><textarea name="motivo_cambio" class="form-control" rows="3" placeholder="Ej: Cambio de rodamiento, falla, mantenimiento mayor..."></textarea></div>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Guardar reemplazo</button></div>
+        </form>
+    </div>
+</div>
+
+{% for c in componentes_activos %}
+<div class="modal fade" id="mant{{ c.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" class="modal-content">
+            {% csrf_token %}<input type="hidden" name="accion" value="actualizar_mantenimiento"><input type="hidden" name="componente_id" value="{{ c.id }}">
+            <div class="modal-header"><h5 class="modal-title">Actualizar mantenimiento</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="alert alert-light border"><strong>{{ c.descripcion|default:c.get_tipo_display }}</strong><br>Serial: {{ c.serial }}</div>
+                <div class="mb-3">
+                    <label class="form-label">Fecha mantenimiento realizado</label>
+                    <input type="date" name="fecha_mantenimiento_realizado" class="form-control" value="{{ c.fecha_ultimo_mantenimiento|date:'Y-m-d'|default_if_none:'' }}" required>
+                    <small class="text-muted">Esta fecha queda registrada como último mantenimiento realizado.</small>
+                </div>
+
+                {% if c.regla_mantenimiento %}
+                    <div class="alert alert-info mb-0">
+                        <strong>Próximo mantenimiento automático</strong><br>
+                        No se ingresa manualmente. Al guardar, se actualiza la columna de último mantenimiento y el sistema recalcula automáticamente la próxima fecha con la regla configurada para {{ c.get_tipo_display }}: cada {{ c.dias_regla_mantenimiento }} días.
+                    </div>
+                {% else %}
+                    <div class="alert alert-danger mb-0">
+                        <strong>Sin regla de mantenimiento</strong><br>
+                        No se puede calcular el próximo mantenimiento. Primero cree una regla para el componente {{ c.get_tipo_display }}.
+                        <div class="mt-2">
+                            <a href="{% url 'runlife:reglas' %}" class="btn btn-sm btn-outline-danger">Ver / crear reglas</a>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Actualizar</button></div>
+        </form>
+    </div>
+</div>
+{% endfor %}
+<!-- MODAL AGREGAR COMPONENTE -->
+<div class="modal fade" id="modalAgregarComponente" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <form method="post" class="modal-content">
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="agregar_componente">
+
+            <div class="modal-header">
+                <h5 class="modal-title">Agregar componente</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+
+                <div class="row g-3">
+
+                    <div class="col-md-4">
+                        <label class="form-label">Tipo</label>
+                        <select name="tipo" class="form-select" required>
+                            <option value="MOTOR">Motor</option>
+                            <option value="CAMARA">Cámara de Empuje</option>
+                            <option value="BOMBA">Bomba</option>
+                            <option value="VSD">VSD</option>
+                            <option value="COOLER">Cooler</option>
+                            <option value="OTRO">Otro</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Descripción</label>
+                        <input type="text" name="descripcion" class="form-control">
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Serial</label>
+                        <input type="text" name="serial" class="form-control" required>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Modelo</label>
+                        <input type="text" name="modelo" class="form-control">
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Parte Número</label>
+                        <input type="text" name="parte_numero" class="form-control">
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Fecha instalación</label>
+                        <input type="date" name="fecha_instalacion" class="form-control">
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-success">Crear componente</button>
+            </div>
+
+        </form>
+    </div>
+</div>
+{% endblock %}

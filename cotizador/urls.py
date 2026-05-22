@@ -1,5 +1,6 @@
 from django.contrib.auth import views as auth_views
 from .views import importar_cotizador_bombas_view
+from .views import asistente_vsd_ia_view
 from . import views
 from django.urls import path
 from .views import (
@@ -65,5 +66,11 @@ path(
         template_name="cotizador/password_reset_complete.html"
     ),
     name="password_reset_complete",
+),
+
+path(
+    "diagnostico-variador/asistente-ia/",
+    asistente_vsd_ia_view,
+    name="asistente_vsd_ia"
 ),
 ]

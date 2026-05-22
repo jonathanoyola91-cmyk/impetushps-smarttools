@@ -1,0 +1,46 @@
+{% extends "runlife/base_runlife.html" %}
+{% block title %}{% if modo == 'editar' %}Editar{% else %}Nueva{% endif %} Regla{% endblock %}
+{% block content %}
+<div class="main-content">
+    <div class="mb-3">
+        <a href="{% url 'runlife:reglas' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver a reglas</a>
+    </div>
+    {% if messages %}
+        {% for message in messages %}<div class="alert alert-{{ message.tags }}">{{ message }}</div>{% endfor %}
+    {% endif %}
+    <div class="card-box">
+        <div class="title-main">{% if modo == 'editar' %}Modificar regla{% else %}Nueva regla{% endif %}</div>
+        <p class="text-muted mb-4">Esta regla alimenta automáticamente la fecha de próximo mantenimiento de cada componente.</p>
+        <form method="post" class="row g-3">
+            {% csrf_token %}
+            {% for field in form %}
+                <div class="col-md-6">
+                    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                    {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                </div>
+            {% endfor %}
+            {% if form.non_field_errors %}
+                <div class="col-12"><div class="alert alert-danger">{{ form.non_field_errors }}</div></div>
+            {% endif %}
+            <div class="col-12">
+                <div class="help-card">
+                    <strong>Recomendación:</strong> si configura días de mantenimiento, el sistema usará esos días. Si lo deja vacío, calculará días con horas / 24.
+                </div>
+            </div>
+            <div class="col-12 text-end">
+                <a href="{% url 'runlife:reglas' %}" class="btn btn-light btn-main">Cancelar</a>
+                <button type="submit" class="btn btn-primary btn-main">Guardar regla</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+    document.querySelectorAll('input, select, textarea').forEach(function(el){
+        if(!el.classList.contains('form-check-input')) el.classList.add('form-control');
+        if(el.tagName === 'SELECT') { el.classList.remove('form-control'); el.classList.add('form-select'); }
+        if(el.type === 'checkbox') { el.classList.remove('form-control'); el.classList.add('form-check-input'); }
+    });
+</script>
+{% endblock %}

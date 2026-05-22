@@ -650,3 +650,55 @@ class CustomLoginView(LoginView):
             "El diagnóstico VSD permanece público para soporte técnico rápido."
         )
         return context
+
+def asistente_vsd_ia_view(request):
+    if request.method != "POST":
+        return redirect("diagnostico_variador")
+
+    marca = request.POST.get("marca", "").strip()
+    codigo = request.POST.get("codigo", "").strip()
+    pregunta = request.POST.get("pregunta", "").strip()
+
+    diagnostico = DiagnosticoVariador.objects.filter(
+        activo=True,
+        marca__iexact=marca,
+        codigo__iexact=codigo,
+    ).first()
+
+    respuesta = ""
+
+    if diagnostico:
+        respuesta = f"""
+Diagnóstico identificado:
+{diagnostico.nombre_falla}
+
+Causa probable:
+{diagnostico.causa_probable}
+
+Acción recomendada:
+{diagnostico.accion_recomendada}
+
+Validar:
+- Condición de carga
+- Parámetros del variador
+- Estado eléctrico del motor
+- Historial de la falla
+"""
+
+    VSDConsultaIA.objects.create(
+        marca=marca,
+        codigo=codigo,
+        pregunta_usuario=pregunta,
+        respuesta_ia=respuesta,
+        ip_address=_client_ip(request),
+    )
+
+    return render(
+        request,
+        "cotizador/asistente_vsd_resultado.html",
+        {
+            "pregunta": pregunta,
+            "respuesta": respuesta,
+            "diagnostico": diagnostico,
+        }
+    )
