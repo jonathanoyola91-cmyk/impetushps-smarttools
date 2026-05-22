@@ -1,0 +1,71 @@
+{% extends "runlife/base_runlife.html" %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <h3>Importar componentes desde Excel</h3>
+
+    <p class="text-muted">
+        Carga masiva usando la columna <strong>sistema_id</strong>.
+    </p>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                <div class="mb-3">
+                    <label class="form-label">Archivo Excel</label>
+                    <input type="file" name="archivo" accept=".xlsx,.xls" class="form-control" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    Importar Excel
+                </button>
+
+                <a href="{% url 'runlife:dashboard' %}" class="btn btn-secondary">
+                    Volver
+                </a>
+            </form>
+        </div>
+    </div>
+
+    <h5>IDs de sistemas disponibles</h5>
+
+    <div class="table-responsive">
+        <table class="table table-sm table-bordered">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Cliente</th>
+                    <th>Campo</th>
+                    <th>Sistema</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in sistemas %}
+                <tr>
+                    <td><strong>{{ s.id }}</strong></td>
+                    <td>{{ s.campo.cliente.nombre }}</td>
+                    <td>{{ s.campo.nombre }}</td>
+                    <td>{{ s.nombre }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4">No hay sistemas registrados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+{% endblock %}
