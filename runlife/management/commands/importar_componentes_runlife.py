@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils.dateparse import parse_date
 
-from runlife.models import System, SystemComponent
+from runlife.models import InjectionSystem, SystemComponent
 
 
 class Command(BaseCommand):
@@ -35,7 +35,25 @@ class Command(BaseCommand):
         creados = 0
         errores = []
 
-        tipos_unicos = ["Motor", "Cámara de Empuje", "Cooler", "Variador / VSD"]
+        tipos_unicos = ["MOTOR", "CAMARA", "COOLER", "VSD"]
+
+        mapa_tipos = {
+            "MOTOR": "MOTOR",
+            "Motor": "MOTOR",
+            "CAMARA": "CAMARA",
+            "Cámara": "CAMARA",
+            "Cámara de Empuje": "CAMARA",
+            "Camara de Empuje": "CAMARA",
+            "BOMBA": "BOMBA",
+            "Bomba": "BOMBA",
+            "COOLER": "COOLER",
+            "Cooler": "COOLER",
+            "VSD": "VSD",
+            "Variador / VSD": "VSD",
+            "Variador": "VSD",
+            "OTRO": "OTRO",
+            "Otro": "OTRO",
+        }
 
         with transaction.atomic():
             for index, row in df.iterrows():
@@ -43,15 +61,32 @@ class Command(BaseCommand):
 
                 try:
                     sistema_id = int(row["sistema_id"])
-                    sistema = System.objects.get(id=sistema_id)
+                    sistema = InjectionSystem.objects.get(id=sistema_id)
 
-                    tipo = str(row["tipo"]).strip()
+                    tipo_excel = str(row["tipo"]).strip()
+                    tipo = mapa_tipos.get(tipo_excel, tipo_excel.upper())
+
                     descripcion = str(row["descripcion"]).strip()
                     serial = str(row["serial"]).strip()
                     parte_numero = str(row["parte_numero"]).strip()
 
-                    marca = str(row.get("marca", "IMPETUS")).strip() if not pd.isna(row.get("marca", "")) else "IMPETUS"
-                    modelo = str(row.get("modelo", "")).strip() if not pd.isna(row.get("modelo", "")) else ""
+                    marca = (
+                        str(row.get("marca", "IMPETUS")).strip()
+                        if not pd.isna(row.get("marca", ""))
+                        else "IMPETUS"
+                    )
+
+                    modelo = (
+                        str(row.get("modelo", "")).strip()
+                        if not pd.isna(row.get("modelo", ""))
+                        else ""
+                    )
+
+                    origen = (
+                        str(row.get("origen", "CLIENTE")).strip()
+                        if "origen" in df.columns and not pd.isna(row.get("origen"))
+                        else "CLIENTE"
+                    )
 
                     fecha_instalacion = None
                     if "fecha_instalacion" in df.columns and not pd.isna(row.get("fecha_instalacion")):
@@ -78,18 +113,20 @@ class Command(BaseCommand):
                     SystemComponent.objects.create(
                         sistema=sistema,
                         tipo=tipo,
+                        origen=origen,
                         descripcion=descripcion,
                         marca=marca,
                         modelo=modelo,
                         serial=serial,
                         parte_numero=parte_numero,
+                        fecha_instalacion=fecha_instalacion,
                         fecha_entrega_cliente=fecha_instalacion,
                         activo=True,
                     )
 
                     creados += 1
 
-                except System.DoesNotExist:
+                except InjectionSystem.DoesNotExist:
                     errores.append(f"Fila {fila}: no existe sistema_id {row['sistema_id']}")
                 except Exception as e:
                     errores.append(f"Fila {fila}: {e}")
