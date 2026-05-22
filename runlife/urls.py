@@ -24,4 +24,5 @@ urlpatterns = [
     path("limites-operativos/nuevo/", views.crear_limite_operativo, name="crear_limite_operativo"),
     path("limites-operativos/<int:limite_id>/editar/", views.editar_limite_operativo, name="editar_limite_operativo"),
     path("sistema/<int:sistema_id>/monitoreo/pdf/",views.monitoreo_pdf,name="monitoreo_pdf"),
+    path("componentes/importar-excel/", views.importar_componentes_excel, name="importar_componentes_excel"),
 ]

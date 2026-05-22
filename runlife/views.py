@@ -4,6 +4,8 @@ from django.db import transaction
 from django.db.models import Prefetch, Q
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
+from django.utils.dateparse import parse_date
+import pandas as pd
 
 from .models import (
     ClientAccount,
@@ -20,7 +22,7 @@ from .forms import MaintenanceRuleForm
 from .forms import OperationalMonitoringForm
 from .models import OperationalLimit
 from .forms import OperationalLimitForm
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseForbidden
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 
@@ -419,6 +421,239 @@ def _runlife_context(request, sidebar_subtitle="RunLife", **extra):
     }
     context.update(extra)
     return context
+
+
+def _puede_importar_componentes(user):
+    return (
+        user.is_staff
+        or user.is_superuser
+        or user.groups.filter(name__in=[
+            "RUNLIFE_ADMIN",
+            "RUNLIFE_IMPORTADOR",
+            "Gerencia",
+            "gerencia",
+        ]).exists()
+    )
+
+
+def _normalizar_tipo_componente(valor):
+    valor = str(valor or "").strip()
+
+    mapa_tipos = {
+        "MOTOR": "MOTOR",
+        "Motor": "MOTOR",
+        "motor": "MOTOR",
+
+        "CAMARA": "CAMARA",
+        "Cámara": "CAMARA",
+        "Camara": "CAMARA",
+        "Cámara de Empuje": "CAMARA",
+        "Camara de Empuje": "CAMARA",
+        "cámara de empuje": "CAMARA",
+        "camara de empuje": "CAMARA",
+
+        "BOMBA": "BOMBA",
+        "Bomba": "BOMBA",
+        "bomba": "BOMBA",
+
+        "COOLER": "COOLER",
+        "Cooler": "COOLER",
+        "cooler": "COOLER",
+
+        "VSD": "VSD",
+        "Variador": "VSD",
+        "variador": "VSD",
+        "Variador / VSD": "VSD",
+        "variador / vsd": "VSD",
+
+        "OTRO": "OTRO",
+        "Otro": "OTRO",
+        "otro": "OTRO",
+    }
+
+    return mapa_tipos.get(valor, valor.upper())
+
+
+def _valor_excel(row, columna, defecto=""):
+    if columna not in row.index:
+        return defecto
+
+    valor = row.get(columna)
+
+    if pd.isna(valor):
+        return defecto
+
+    return str(valor).strip()
+
+
+def _fecha_excel(row, columna):
+    if columna not in row.index or pd.isna(row.get(columna)):
+        return None
+
+    valor = row.get(columna)
+
+    if hasattr(valor, "date"):
+        return valor.date()
+
+    return parse_date(str(valor))
+
+
+@login_required
+def importar_componentes_excel(request):
+    if not _puede_importar_componentes(request.user):
+        return HttpResponseForbidden("No tienes permiso para importar componentes.")
+
+    sistemas = InjectionSystem.objects.select_related(
+        "campo",
+        "campo__cliente",
+    ).filter(
+        activo=True,
+    ).order_by(
+        "campo__cliente__nombre",
+        "campo__nombre",
+        "nombre",
+    )
+
+    if request.method == "POST":
+        archivo = request.FILES.get("archivo")
+
+        if not archivo:
+            messages.error(request, "Debes seleccionar un archivo Excel.")
+            return redirect("runlife:importar_componentes_excel")
+
+        try:
+            df = pd.read_excel(archivo)
+        except Exception as e:
+            messages.error(request, f"No se pudo leer el archivo Excel: {e}")
+            return redirect("runlife:importar_componentes_excel")
+
+        columnas_requeridas = [
+            "sistema_id",
+            "tipo",
+            "descripcion",
+            "serial",
+            "parte_numero",
+        ]
+
+        for columna in columnas_requeridas:
+            if columna not in df.columns:
+                messages.error(request, f"Falta la columna obligatoria: {columna}")
+                return redirect("runlife:importar_componentes_excel")
+
+        tipos_unicos = ["MOTOR", "CAMARA", "COOLER", "VSD"]
+
+        creados = 0
+        errores = []
+
+        with transaction.atomic():
+            for index, row in df.iterrows():
+                fila = index + 2
+
+                try:
+                    sistema_id_raw = row.get("sistema_id")
+
+                    if pd.isna(sistema_id_raw):
+                        errores.append(f"Fila {fila}: sistema_id es obligatorio.")
+                        continue
+
+                    sistema_id = int(sistema_id_raw)
+                    sistema = InjectionSystem.objects.get(id=sistema_id)
+
+                    tipo = _normalizar_tipo_componente(row.get("tipo"))
+                    tipos_validos = [codigo for codigo, _label in SystemComponent.TIPO_COMPONENTE]
+
+                    if tipo not in tipos_validos:
+                        errores.append(
+                            f"Fila {fila}: tipo '{row.get('tipo')}' no es válido. "
+                            "Use MOTOR, CAMARA, BOMBA, COOLER, VSD u OTRO."
+                        )
+                        continue
+
+                    descripcion = _valor_excel(row, "descripcion")
+                    serial = _valor_excel(row, "serial")
+                    parte_numero = _valor_excel(row, "parte_numero")
+
+                    if not serial:
+                        errores.append(f"Fila {fila}: serial es obligatorio.")
+                        continue
+
+                    marca = _valor_excel(row, "marca", "IMPETUS") or "IMPETUS"
+                    modelo = _valor_excel(row, "modelo", "")
+                    origen = _valor_excel(row, "origen", "CLIENTE") or "CLIENTE"
+
+                    origenes_validos = [codigo for codigo, _label in SystemComponent.ORIGEN_COMPONENTE]
+                    if origen not in origenes_validos:
+                        errores.append(
+                            f"Fila {fila}: origen '{origen}' no es válido. "
+                            "Use IMPETUS_FAB, IMPETUS_REP o CLIENTE."
+                        )
+                        continue
+
+                    fecha_instalacion = _fecha_excel(row, "fecha_instalacion")
+                    fecha_entrega_cliente = _fecha_excel(row, "fecha_entrega_cliente") or fecha_instalacion
+                    fecha_reparacion = _fecha_excel(row, "fecha_reparacion")
+                    fecha_ultimo_mantenimiento = _fecha_excel(row, "fecha_ultimo_mantenimiento")
+
+                    dias_garantia = 365
+                    if "dias_garantia" in row.index and not pd.isna(row.get("dias_garantia")):
+                        dias_garantia = int(row.get("dias_garantia"))
+
+                    if tipo in tipos_unicos:
+                        existe_activo = SystemComponent.objects.filter(
+                            sistema=sistema,
+                            tipo=tipo,
+                            activo=True,
+                            fecha_desinstalacion__isnull=True,
+                        ).exists()
+
+                        if existe_activo:
+                            errores.append(
+                                f"Fila {fila}: ya existe un {tipo} activo para el sistema {sistema_id}. Use reemplazo."
+                            )
+                            continue
+
+                    SystemComponent.objects.create(
+                        sistema=sistema,
+                        tipo=tipo,
+                        origen=origen,
+                        descripcion=descripcion,
+                        marca=marca,
+                        modelo=modelo,
+                        serial=serial,
+                        parte_numero=parte_numero,
+                        fecha_instalacion=fecha_instalacion,
+                        fecha_entrega_cliente=fecha_entrega_cliente,
+                        fecha_reparacion=fecha_reparacion,
+                        fecha_ultimo_mantenimiento=fecha_ultimo_mantenimiento,
+                        dias_garantia=dias_garantia,
+                        activo=True,
+                    )
+
+                    creados += 1
+
+                except InjectionSystem.DoesNotExist:
+                    errores.append(f"Fila {fila}: no existe sistema_id {row.get('sistema_id')}")
+                except Exception as e:
+                    errores.append(f"Fila {fila}: {e}")
+
+        if creados:
+            messages.success(request, f"Componentes creados: {creados}")
+        else:
+            messages.warning(request, "No se creó ningún componente.")
+
+        for error in errores[:30]:
+            messages.warning(request, error)
+
+        if len(errores) > 30:
+            messages.warning(request, f"Hay {len(errores) - 30} errores adicionales no mostrados.")
+
+        return redirect("runlife:importar_componentes_excel")
+
+    return render(request, "runlife/importar_componentes_excel.html", _runlife_context(
+        request,
+        sidebar_subtitle="Importar Excel",
+        sistemas=sistemas,
+    ))
 
 
 def _configurar_form_regla_por_usuario(form, user):
