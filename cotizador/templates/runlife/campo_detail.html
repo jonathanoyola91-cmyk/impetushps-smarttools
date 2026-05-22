@@ -42,6 +42,112 @@
 
         </form>
 
+
+    <div class="card-box mt-3">
+        <div class="card-padding">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <div>
+                    <h5 class="section-title mb-1">📦 Bodega del Campo</h5>
+                    <p class="mini-muted mb-0">Equipos entregados al cliente y pendientes por instalar.</p>
+                </div>
+                {% if puede_gestionar_bodega %}
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#formBodegaCampo">
+                        <i class="bi bi-plus-circle"></i> Agregar equipo a bodega
+                    </button>
+                {% endif %}
+            </div>
+
+            {% if puede_gestionar_bodega %}
+            <div class="collapse mb-3" id="formBodegaCampo">
+                <form method="post" class="border rounded p-3 bg-light">
+                    {% csrf_token %}
+                    <input type="hidden" name="accion" value="crear_bodega_item">
+                    <div class="row g-2">
+                        <div class="col-md-3">
+                            <label class="form-label">Tipo</label>
+                            <select name="tipo" class="form-select" required>
+                                <option value="CAMARA">Cámara de Empuje</option>
+                                <option value="BOMBA">Bomba</option>
+                                <option value="MOTOR">Motor</option>
+                                <option value="VSD">VSD</option>
+                                <option value="COOLER">Cooler</option>
+                                <option value="OTRO">Otro</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Origen</label>
+                            <select name="origen" class="form-select">
+                                <option value="IMPETUS_REP">Reparado por IMPETUS</option>
+                                <option value="IMPETUS_FAB">Fabricado por IMPETUS</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Serial</label>
+                            <input name="serial" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Modelo</label>
+                            <input name="modelo" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Descripción</label>
+                            <input name="descripcion" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Fecha reparación</label>
+                            <input type="date" name="fecha_reparacion" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Fecha entrega cliente</label>
+                            <input type="date" name="fecha_entrega_cliente" class="form-control">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Garantía días</label>
+                            <input type="number" name="dias_garantia" class="form-control" value="365">
+                        </div>
+                        <div class="col-12 text-end">
+                            <button class="btn btn-primary btn-sm">Guardar en bodega</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            {% endif %}
+
+            <div class="table-responsive-custom">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Serial</th>
+                            <th>Tipo</th>
+                            <th>Modelo</th>
+                            <th>Fecha entrega</th>
+                            <th>Garantía</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in bodega_items %}
+                            <tr>
+                                <td>{{ item.componente.serial }}</td>
+                                <td>{{ item.componente.get_tipo_display }}</td>
+                                <td>{{ item.componente.modelo|default:"-" }}</td>
+                                <td>{{ item.componente.fecha_entrega_cliente|date:"d/m/Y" }}</td>
+                                <td>
+                                    {% if item.componente.en_garantia_interna or item.componente.en_garantia_real %}
+                                        <span class="badge-status">En garantía</span>
+                                    {% else %}
+                                        <span class="badge-danger-custom">Vencida / Sin fecha</span>
+                                    {% endif %}
+                                </td>
+                                <td><span class="badge-warning">Disponible</span></td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="6" class="text-muted">No hay equipos en bodega.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <div class="title-main">Dashboard RunLife</div>
@@ -127,7 +233,7 @@
 
     <div class="row g-3">
 
-        <div class="col-xl-8">
+        <div class="col-xl-9">
 
             <div class="card-box card-padding">
 
@@ -178,11 +284,13 @@
     </div>
 </div>
 
-                    <div class="system-body">
-                        <table class="table">
+                    <div class="system-body table-scroll">
+                        <div class="table-responsive-custom">
+                            <table class="table table-hover">
                             <thead>
                                 <tr>
-                                    <th>Componente</th>
+                                    <th>Tipo</th>
+                                    <th>Descripción</th>
                                     <th>Serial Actual</th>
                                     <th>Modelo</th>
                                     <th>Parte Número</th>
@@ -196,10 +304,11 @@
                             <tbody>
                                 {% for c in sistema.componentes.all %}
                                     <tr>
-                                        <td>
-                                            <strong>{{ c.descripcion|default:c.get_tipo_display }}</strong>
-                                        </td>
+                                        
+                                        <td><strong>{{ c.get_tipo_display }}</strong></td>
 
+                                        <td>{{ c.descripcion|default:"-" }}</td>
+                                       
                                         <td>{{ c.serial }}</td>
 
                                         <td>{{ c.modelo|default:"-" }}</td>
@@ -247,6 +356,7 @@
                                 {% endfor %}
                             </tbody>
                         </table>
+                        </div> 
                     </div>
 
                 {% empty %}
@@ -261,7 +371,7 @@
 
         </div>
 
-        <div class="col-xl-4">
+        <div class="col-xl-3">
 
             <div class="right-card">
 

@@ -471,13 +471,28 @@ class SystemComponent(models.Model):
         ("OTRO", "Otro"),
     ]
 
+    ORIGEN_COMPONENTE = [
+        ("IMPETUS_FAB", "Fabricado por IMPETUS"),
+        ("IMPETUS_REP", "Reparado por IMPETUS"),
+        ("CLIENTE", "Equipo del cliente"),
+    ]
+
     sistema = models.ForeignKey(
         InjectionSystem,
         on_delete=models.CASCADE,
-        related_name="componentes"
+        related_name="componentes",
+        null=True,
+        blank=True,
+        help_text="Sistema donde está instalado. Puede quedar vacío cuando el componente está en bodega del campo."
     )
 
     tipo = models.CharField(max_length=20, choices=TIPO_COMPONENTE)
+    origen = models.CharField(
+        max_length=20,
+        choices=ORIGEN_COMPONENTE,
+        default="CLIENTE",
+        help_text="Indica si el componente fue fabricado o reparado por IMPETUS, o si pertenece al cliente."
+    )
     descripcion = models.CharField(max_length=150, blank=True, null=True)
     marca = models.CharField(max_length=100, blank=True, null=True)
     modelo = models.CharField(max_length=100, blank=True, null=True)
@@ -487,6 +502,19 @@ class SystemComponent(models.Model):
     fecha_reparacion = models.DateField(blank=True, null=True)
     fecha_instalacion = models.DateField(blank=True, null=True)
     fecha_desinstalacion = models.DateField(blank=True, null=True)
+
+    # Garantía IMPETUS.
+    # Para equipos fabricados/reparados por IMPETUS, la garantía inicia desde la entrega al cliente,
+    # aunque el cliente todavía no lo haya instalado en un sistema.
+    fecha_entrega_cliente = models.DateField(
+        blank=True,
+        null=True,
+        help_text="Fecha de entrega al cliente. Desde esta fecha inicia la garantía IMPETUS."
+    )
+    dias_garantia = models.PositiveIntegerField(
+        default=365,
+        help_text="Días de garantía aplicables al componente."
+    )
 
     # Último mantenimiento realmente ejecutado.
     # Desde esta fecha se calcula automáticamente el próximo mantenimiento según la regla.
@@ -658,9 +686,164 @@ class SystemComponent(models.Model):
 
         return self.runlife_dias <= 365
 
+
+    @property
+    def es_impetus(self):
+        return self.origen in ["IMPETUS_FAB", "IMPETUS_REP"]
+
+    @property
+    def tipo_garantia_interno(self):
+        if self.origen == "IMPETUS_FAB":
+            return "Fabricado por IMPETUS"
+        if self.origen == "IMPETUS_REP":
+            return "Reparado por IMPETUS"
+        return "Equipo del cliente"
+
+    @property
+    def fecha_inicio_garantia_calc(self):
+        # La garantía comercial inicia desde entrega al cliente.
+        # Se deja respaldo con fecha_instalacion/fecha_reparacion para registros antiguos.
+        return self.fecha_entrega_cliente or self.fecha_instalacion or self.fecha_reparacion
+
+    @property
+    def runlife_garantia_dias(self):
+        if not self.fecha_inicio_garantia_calc:
+            return None
+
+        fecha_final = self.fecha_desinstalacion or timezone.localdate()
+        return max((fecha_final - self.fecha_inicio_garantia_calc).days, 0)
+
+    @property
+    def dias_garantia_transcurridos(self):
+        if not self.fecha_entrega_cliente:
+            return None
+        return max((timezone.localdate() - self.fecha_entrega_cliente).days, 0)
+
+    @property
+    def en_garantia_interna(self):
+        if not self.es_impetus:
+            return False
+
+        dias = self.runlife_garantia_dias
+        if dias is None:
+            return False
+
+        return dias <= (self.dias_garantia or 365)
+
+    @property
+    def en_garantia_real(self):
+        return self.en_garantia_interna
+
+    @property
+    def dias_restantes_garantia(self):
+        dias = self.runlife_garantia_dias
+        if dias is None:
+            return None
+        return (self.dias_garantia or 365) - dias
+
+    @property
+    def dias_vencidos_garantia(self):
+        restantes = self.dias_restantes_garantia
+        if restantes is None or restantes >= 0:
+            return 0
+        return abs(restantes)
+
+    @property
+    def es_marca_impetus(self):
+        return bool(self.marca and "IMPETUS" in self.marca.upper())
+
+    @property
+    def estado_garantia_interna(self):
+        if not self.es_impetus and not self.es_marca_impetus:
+            return "NO_APLICA"
+        if not self.fecha_inicio_garantia_calc:
+            return "SIN_FECHA"
+        if self.en_garantia_interna:
+            return "EN_GARANTIA"
+        return "FUERA_GARANTIA"
+
     def registrar_mantenimiento(self, fecha_realizada=None):
         self.fecha_ultimo_mantenimiento = fecha_realizada or timezone.localdate()
         self.save(update_fields=["fecha_ultimo_mantenimiento", "actualizado_en"])
+
+
+class BodegaCampoItem(models.Model):
+    campo = models.ForeignKey(
+        "runlife.FieldLocation",
+        on_delete=models.CASCADE,
+        related_name="bodega_items"
+    )
+
+    componente = models.OneToOneField(
+        "runlife.SystemComponent",
+        on_delete=models.CASCADE,
+        related_name="bodega_item"
+    )
+
+    fecha_entrega_cliente = models.DateField(
+        default=timezone.localdate,
+        help_text="Fecha en que el componente reparado/fabricado fue entregado al cliente."
+    )
+    fecha_ingreso_bodega = models.DateField(default=timezone.localdate)
+
+    disponible = models.BooleanField(default=True)
+
+    sistema_instalado = models.ForeignKey(
+        "runlife.InjectionSystem",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="componentes_desde_bodega"
+    )
+
+    fecha_instalacion = models.DateField(null=True, blank=True)
+    observaciones = models.TextField(blank=True, null=True)
+
+    class Meta:
+        ordering = ["campo__cliente__nombre", "campo__nombre", "-disponible", "componente__serial"]
+        verbose_name = "Bodega de Campo"
+        verbose_name_plural = "Bodega de Campo"
+
+    def __str__(self):
+        estado = "Disponible" if self.disponible else "Instalado"
+        return f"{self.componente.serial} - {self.campo.nombre} - {estado}"
+
+    def save(self, *args, **kwargs):
+        if self.fecha_entrega_cliente and self.componente_id:
+            self.componente.fecha_entrega_cliente = self.fecha_entrega_cliente
+            self.componente.save(update_fields=["fecha_entrega_cliente", "actualizado_en"])
+        super().save(*args, **kwargs)
+
+    def instalar_en_sistema(self, sistema, fecha_instalacion=None):
+        """
+        Consume el ítem de bodega y asigna su componente al sistema.
+
+        Se usa tanto para:
+        1) Agregar un componente adicional desde bodega.
+        2) Reemplazar un componente activo con un componente de bodega.
+
+        Importante: no crea otro SystemComponent, reutiliza el componente
+        asociado a bodega para evitar duplicados.
+        """
+        fecha = fecha_instalacion or timezone.localdate()
+
+        self.disponible = False
+        self.sistema_instalado = sistema
+        self.fecha_instalacion = fecha
+        self.save(update_fields=["disponible", "sistema_instalado", "fecha_instalacion"])
+
+        componente = self.componente
+        componente.sistema = sistema
+        componente.fecha_instalacion = fecha
+        componente.fecha_desinstalacion = None
+        componente.activo = True
+        componente.save(update_fields=[
+            "sistema",
+            "fecha_instalacion",
+            "fecha_desinstalacion",
+            "activo",
+            "actualizado_en",
+        ])
 
 
 class ComponentChangeLog(models.Model):

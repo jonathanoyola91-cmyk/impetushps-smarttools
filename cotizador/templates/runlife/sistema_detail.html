@@ -66,16 +66,31 @@
     </div>
 
     <div class="row g-3">
-        <div class="col-xl-8">
+        <div class="col-xl-9">
             <div class="card-box card-padding">
                 <div class="d-flex justify-content-between align-items-center mb-3"><h4 class="mb-0 section-title">Componentes Activos</h4></div>
                 <div class="table-responsive">
                     <table class="table">
-                        <thead><tr><th>Componente</th><th>Serial Actual</th><th>Modelo</th><th>Parte Número</th><th>Fecha Instalación</th><th>Último Mantenimiento</th><th>RunLife</th><th>Próximo Mantenimiento</th><th>Estado mantenimiento</th><th>Acción</th></tr></thead>
+                        <thead>
+                        <tr>
+                            <th>Tipo</th>              
+                            <th>Descripción</th>
+                            <th>Serial Actual</th>
+                            <th>Modelo</th>
+                            <th>Parte Número</th>
+                            <th>Fecha Instalación</th>
+                            <th>Último Mantenimiento</th>
+                            <th>RunLife</th>
+                            <th>Próximo Mantenimiento</th>
+                            <th>Estado mantenimiento</th>
+                            <th>Acción</th>
+                        </tr>
+                        </thead>
                         <tbody>
                             {% for c in componentes_activos %}
                                 <tr>
-                                    <td><strong>{{ c.descripcion|default:c.get_tipo_display }}</strong></td>
+                                    <td><strong>{{ c.get_tipo_display }}</strong></td>
+                                    <td>{{ c.descripcion|default:"-" }}</td>
                                     <td>{{ c.serial }}</td><td>{{ c.modelo|default:"-" }}</td><td>{{ c.parte_numero|default:"-" }}</td><td>{{ c.fecha_instalacion|default:"-" }}</td>
                                     <td>
                                         {% if c.fecha_ultimo_mantenimiento %}
@@ -134,7 +149,7 @@
             </div>
         </div>
 
-        <div class="col-xl-4">
+        <div class="col-xl-3">
             <div class="right-card">
                 <h5 class="mb-3">Alertas de Mantenimiento</h5>
                 {% for c in vencidos %}<div class="alert-line"><i class="bi bi-exclamation-triangle-fill text-danger fs-5"></i><div><strong>{{ c.descripcion|default:c.get_tipo_display }}</strong><br><span class="text-danger">Mantenimiento vencido</span><br><small>{{ c.fecha_proximo_mantenimiento|default:"Sin fecha" }}</small></div></div>{% endfor %}
@@ -177,22 +192,94 @@
     </div>
 </div>
 
+
 <div class="modal fade" id="modalReemplazo" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <form method="post" class="modal-content">
-            {% csrf_token %}<input type="hidden" name="accion" value="reemplazar_componente">
-            <div class="modal-header"><h5 class="modal-title">Reemplazar componente</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="reemplazar_componente">
+
+            <div class="modal-header">
+                <h5 class="modal-title">Reemplazar componente</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
             <div class="modal-body">
+                <div class="alert alert-info">
+                    <strong>Flujo recomendado:</strong> seleccione el componente actual y el equipo disponible en bodega.
+                    Al guardar, el componente actual pasa a histórico y el equipo de bodega queda instalado en el sistema.
+                </div>
+
                 <div class="row g-3">
-                    <div class="col-md-6"><label class="form-label">Componente actual</label><select name="componente_actual" class="form-select" required>{% for c in componentes_activos %}<option value="{{ c.id }}">{{ c.descripcion|default:c.get_tipo_display }} - {{ c.serial }}</option>{% endfor %}</select></div>
-                    <div class="col-md-6"><label class="form-label">Fecha de cambio / instalación nuevo</label><input type="date" name="fecha_cambio" class="form-control" required></div>
-                    <div class="col-md-4"><label class="form-label">Nuevo serial</label><input type="text" name="nuevo_serial" class="form-control" required></div>
-                    <div class="col-md-4"><label class="form-label">Nuevo modelo</label><input type="text" name="nuevo_modelo" class="form-control"></div>
-                    <div class="col-md-4"><label class="form-label">Nuevo parte número</label><input type="text" name="nuevo_parte" class="form-control"></div>
-                    <div class="col-12"><label class="form-label">Motivo / observación</label><textarea name="motivo_cambio" class="form-control" rows="3" placeholder="Ej: Cambio de rodamiento, falla, mantenimiento mayor..."></textarea></div>
+                    <div class="col-md-6">
+                        <label class="form-label">Componente actual a reemplazar</label>
+                        <select name="componente_actual" id="reemplazoComponenteActual" class="form-select" required>
+                            {% for c in componentes_activos %}
+                                <option value="{{ c.id }}" data-tipo="{{ c.tipo }}">
+                                    {{ c.get_tipo_display }} - {{ c.descripcion|default:"Sin descripción" }} - {{ c.serial }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Fecha de cambio / instalación nuevo</label>
+                        <input type="date" name="fecha_cambio" class="form-control" required>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">Equipo disponible en bodega para instalar</label>
+                        <select name="bodega_item_id" id="reemplazoBodegaItem" class="form-select">
+                            <option value="">-- No usar bodega / ingresar datos manualmente --</option>
+                            {% for item in bodega_items %}
+                                <option value="{{ item.id }}"
+                                        data-tipo="{{ item.componente.tipo }}"
+                                        data-serial="{{ item.componente.serial }}"
+                                        data-modelo="{{ item.componente.modelo|default:'' }}"
+                                        data-parte="{{ item.componente.parte_numero|default:'' }}"
+                                        data-descripcion="{{ item.componente.descripcion|default:'' }}">
+                                    {{ item.componente.get_tipo_display }} - {{ item.componente.descripcion|default:"Sin descripción" }} - Serial {{ item.componente.serial }} - Modelo {{ item.componente.modelo|default:"Sin modelo" }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">
+                            Si selecciona un equipo de bodega, se consumirá automáticamente y no aparecerá más como disponible.
+                        </small>
+                    </div>
+
+                    <div class="col-12">
+                        <div id="alertaTipoBodega" class="alert alert-warning d-none mb-0">
+                            El equipo seleccionado en bodega no coincide con el tipo del componente actual. Seleccione un equipo del mismo tipo.
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Nuevo serial</label>
+                        <input type="text" name="nuevo_serial" id="nuevoSerial" class="form-control">
+                        <small class="text-muted">Solo requerido si no selecciona bodega.</small>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Nuevo modelo</label>
+                        <input type="text" name="nuevo_modelo" id="nuevoModelo" class="form-control">
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Nuevo parte número</label>
+                        <input type="text" name="nuevo_parte" id="nuevoParte" class="form-control">
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">Motivo / observación</label>
+                        <textarea name="motivo_cambio" class="form-control" rows="3" placeholder="Ej: Cambio de rodamiento, falla, mantenimiento mayor..."></textarea>
+                    </div>
                 </div>
             </div>
-            <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Guardar reemplazo</button></div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" id="btnGuardarReemplazo" class="btn btn-primary">Guardar reemplazo</button>
+            </div>
         </form>
     </div>
 </div>
@@ -244,12 +331,41 @@
             </div>
 
             <div class="modal-body">
+                <div class="alert alert-light border">
+                    <strong>Regla:</strong> Motor, Cámara, Cooler y VSD solo permiten un activo por sistema.
+                    Si ya existe uno, use <strong>Reemplazar componente</strong>. Bomba sí permite varios activos.
+                </div>
 
                 <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label">Equipo disponible en bodega para instalar</label>
+                        <select name="bodega_item_id" id="agregarBodegaItem" class="form-select">
+                            <option value="">-- No usar bodega / ingresar datos manualmente --</option>
+                            {% for item in bodega_items %}
+                                <option value="{{ item.id }}"
+                                        data-tipo="{{ item.componente.tipo }}"
+                                        data-serial="{{ item.componente.serial }}"
+                                        data-modelo="{{ item.componente.modelo|default:'' }}"
+                                        data-parte="{{ item.componente.parte_numero|default:'' }}"
+                                        data-descripcion="{{ item.componente.descripcion|default:'' }}">
+                                    {{ item.componente.get_tipo_display }} - {{ item.componente.descripcion|default:"Sin descripción" }} - Serial {{ item.componente.serial }} - Modelo {{ item.componente.modelo|default:"Sin modelo" }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">
+                            Si selecciona bodega, el equipo se consumirá y quedará instalado en este sistema.
+                        </small>
+                    </div>
+
+                    <div class="col-12">
+                        <div id="alertaAgregarBodega" class="alert alert-warning d-none mb-0">
+                            Este sistema ya tiene un componente activo de ese tipo. Para Motor, Cámara, Cooler y VSD debe usar Reemplazar componente.
+                        </div>
+                    </div>
 
                     <div class="col-md-4">
                         <label class="form-label">Tipo</label>
-                        <select name="tipo" class="form-select" required>
+                        <select name="tipo" id="agregarTipo" class="form-select" required>
                             <option value="MOTOR">Motor</option>
                             <option value="CAMARA">Cámara de Empuje</option>
                             <option value="BOMBA">Bomba</option>
@@ -261,39 +377,148 @@
 
                     <div class="col-md-4">
                         <label class="form-label">Descripción</label>
-                        <input type="text" name="descripcion" class="form-control">
+                        <input type="text" name="descripcion" id="agregarDescripcion" class="form-control">
                     </div>
 
                     <div class="col-md-4">
                         <label class="form-label">Serial</label>
-                        <input type="text" name="serial" class="form-control" required>
+                        <input type="text" name="serial" id="agregarSerial" class="form-control" required>
                     </div>
 
                     <div class="col-md-4">
                         <label class="form-label">Modelo</label>
-                        <input type="text" name="modelo" class="form-control">
+                        <input type="text" name="modelo" id="agregarModelo" class="form-control">
                     </div>
 
                     <div class="col-md-4">
                         <label class="form-label">Parte Número</label>
-                        <input type="text" name="parte_numero" class="form-control">
+                        <input type="text" name="parte_numero" id="agregarParte" class="form-control">
                     </div>
 
                     <div class="col-md-4">
                         <label class="form-label">Fecha instalación</label>
                         <input type="date" name="fecha_instalacion" class="form-control">
                     </div>
-
                 </div>
-
             </div>
 
             <div class="modal-footer">
                 <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-                <button type="submit" class="btn btn-success">Crear componente</button>
+                <button type="submit" id="btnGuardarAgregar" class="btn btn-success">Crear componente</button>
             </div>
-
         </form>
     </div>
 </div>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const tiposUnicos = ["MOTOR", "CAMARA", "COOLER", "VSD"];
+    const tiposActivos = new Set([
+        {% for c in componentes_activos %}
+            "{{ c.tipo }}",
+        {% endfor %}
+    ]);
+
+    const componenteActual = document.getElementById("reemplazoComponenteActual");
+    const bodegaItem = document.getElementById("reemplazoBodegaItem");
+    const alertaTipo = document.getElementById("alertaTipoBodega");
+    const btnGuardar = document.getElementById("btnGuardarReemplazo");
+    const nuevoSerial = document.getElementById("nuevoSerial");
+    const nuevoModelo = document.getElementById("nuevoModelo");
+    const nuevoParte = document.getElementById("nuevoParte");
+
+    function validarBodegaReemplazo() {
+        if (!componenteActual || !bodegaItem) return;
+
+        const compOption = componenteActual.options[componenteActual.selectedIndex];
+        const itemOption = bodegaItem.options[bodegaItem.selectedIndex];
+
+        const tipoActual = compOption ? compOption.dataset.tipo : "";
+        const tipoBodega = itemOption ? itemOption.dataset.tipo : "";
+
+        if (bodegaItem.value) {
+            nuevoSerial.value = itemOption.dataset.serial || "";
+            nuevoModelo.value = itemOption.dataset.modelo || "";
+            nuevoParte.value = itemOption.dataset.parte || "";
+
+            nuevoSerial.readOnly = true;
+            nuevoModelo.readOnly = true;
+            nuevoParte.readOnly = true;
+
+            if (tipoActual && tipoBodega && tipoActual !== tipoBodega) {
+                alertaTipo.classList.remove("d-none");
+                btnGuardar.disabled = true;
+            } else {
+                alertaTipo.classList.add("d-none");
+                btnGuardar.disabled = false;
+            }
+        } else {
+            nuevoSerial.readOnly = false;
+            nuevoModelo.readOnly = false;
+            nuevoParte.readOnly = false;
+            alertaTipo.classList.add("d-none");
+            btnGuardar.disabled = false;
+        }
+    }
+
+    if (componenteActual) componenteActual.addEventListener("change", validarBodegaReemplazo);
+    if (bodegaItem) bodegaItem.addEventListener("change", validarBodegaReemplazo);
+    validarBodegaReemplazo();
+
+    const agregarBodegaItem = document.getElementById("agregarBodegaItem");
+    const agregarTipo = document.getElementById("agregarTipo");
+    const agregarDescripcion = document.getElementById("agregarDescripcion");
+    const agregarSerial = document.getElementById("agregarSerial");
+    const agregarModelo = document.getElementById("agregarModelo");
+    const agregarParte = document.getElementById("agregarParte");
+    const alertaAgregar = document.getElementById("alertaAgregarBodega");
+    const btnGuardarAgregar = document.getElementById("btnGuardarAgregar");
+
+    function tipoBloqueadoParaAgregar(tipo) {
+        return tiposUnicos.includes(tipo) && tiposActivos.has(tipo);
+    }
+
+    function validarAgregarComponente() {
+        if (!agregarBodegaItem || !agregarTipo) return;
+
+        const itemOption = agregarBodegaItem.options[agregarBodegaItem.selectedIndex];
+        let tipoSeleccionado = agregarTipo.value;
+
+        if (agregarBodegaItem.value) {
+            tipoSeleccionado = itemOption.dataset.tipo || tipoSeleccionado;
+            agregarTipo.value = tipoSeleccionado;
+            agregarDescripcion.value = itemOption.dataset.descripcion || "";
+            agregarSerial.value = itemOption.dataset.serial || "";
+            agregarModelo.value = itemOption.dataset.modelo || "";
+            agregarParte.value = itemOption.dataset.parte || "";
+
+            agregarTipo.disabled = true;
+            agregarDescripcion.readOnly = true;
+            agregarSerial.readOnly = true;
+            agregarModelo.readOnly = true;
+            agregarParte.readOnly = true;
+        } else {
+            agregarTipo.disabled = false;
+            agregarDescripcion.readOnly = false;
+            agregarSerial.readOnly = false;
+            agregarModelo.readOnly = false;
+            agregarParte.readOnly = false;
+        }
+
+        if (tipoBloqueadoParaAgregar(tipoSeleccionado)) {
+            alertaAgregar.classList.remove("d-none");
+            btnGuardarAgregar.disabled = true;
+        } else {
+            alertaAgregar.classList.add("d-none");
+            btnGuardarAgregar.disabled = false;
+        }
+    }
+
+    if (agregarBodegaItem) agregarBodegaItem.addEventListener("change", validarAgregarComponente);
+    if (agregarTipo) agregarTipo.addEventListener("change", validarAgregarComponente);
+    validarAgregarComponente();
+});
+</script>
+
 {% endblock %}

@@ -1,0 +1,254 @@
+{% extends "runlife/base_runlife.html" %}
+{% load static %}
+
+{% block title %}Garantías RunLife{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <div class="runlife-topbar d-flex justify-content-between align-items-center">
+        <div>
+            <h4 class="mb-1 fw-bold">
+                <i class="bi bi-shield-check text-success"></i> Dashboard de Garantías
+            </h4>
+            <div class="text-muted">
+                Equipos fabricados o reparados por IMPETUS / Oil & Gas.
+            </div>
+        </div>
+
+        <a href="{% url 'runlife:dashboard' %}" class="btn btn-outline-primary btn-main">
+            <i class="bi bi-arrow-left"></i> Volver al dashboard
+        </a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} mb-3">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-3">
+            <div class="summary-card">
+                <div class="kpi-label text-muted">Total controlados</div>
+                <div class="summary-number">{{ total_componentes }}</div>
+                <div class="kpi-subtitle">Fabricados / reparados / IMPETUS</div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="summary-card">
+                <div class="kpi-label text-muted">En garantía</div>
+                <div class="summary-number text-success">{{ total_en_garantia }}</div>
+                <div class="kpi-subtitle">Dentro del plazo configurado</div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="summary-card">
+                <div class="kpi-label text-muted">Fuera de garantía</div>
+                <div class="summary-number text-danger">{{ total_fuera_garantia }}</div>
+                <div class="kpi-subtitle">Superó días de garantía</div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="summary-card">
+                <div class="kpi-label text-muted">Sin fecha</div>
+                <div class="summary-number text-warning">{{ total_sin_fecha }}</div>
+                <div class="kpi-subtitle">Falta fecha inicio garantía</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="top-filter">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Cliente</label>
+                <select name="cliente" class="form-select">
+                    <option value="">Todos</option>
+                    {% for cliente in clientes %}
+                        <option value="{{ cliente.id }}" {% if filtros.cliente_id == cliente.id|stringformat:"s" %}selected{% endif %}>
+                            {{ cliente.nombre }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Campo</label>
+                <select name="campo" class="form-select">
+                    <option value="">Todos</option>
+                    {% for campo in campos_filtro %}
+                        <option value="{{ campo.id }}" {% if filtros.campo_id == campo.id|stringformat:"s" %}selected{% endif %}>
+                            {{ campo.cliente.nombre }} / {{ campo.nombre }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label">Componente</label>
+                <select name="tipo" class="form-select">
+                    <option value="">Todos</option>
+                    {% for value,label in tipos_componentes %}
+                        <option value="{{ value }}" {% if filtros.tipo == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label">Estado</label>
+                <select name="estado" class="form-select">
+                    <option value="">Todos</option>
+                    <option value="EN_GARANTIA" {% if filtros.estado == "EN_GARANTIA" %}selected{% endif %}>En garantía</option>
+                    <option value="FUERA_GARANTIA" {% if filtros.estado == "FUERA_GARANTIA" %}selected{% endif %}>Fuera de garantía</option>
+                    <option value="SIN_FECHA" {% if filtros.estado == "SIN_FECHA" %}selected{% endif %}>Sin fecha</option>
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label">Buscar</label>
+                <input type="text" name="q" class="form-control" value="{{ filtros.q }}" placeholder="Serial, sistema...">
+            </div>
+
+            <div class="col-12 d-flex gap-2">
+                <button class="btn btn-primary btn-main" type="submit">
+                    <i class="bi bi-search"></i> Filtrar
+                </button>
+                <a href="{% url 'runlife:dashboard_garantias' %}" class="btn btn-outline-secondary btn-main">
+                    Limpiar
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <div class="card-box">
+        <div class="card-padding d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1 fw-bold">Listado de garantías</h5>
+                <div class="text-muted small">
+                    El cálculo usa fecha inicio garantía. Si no existe, usa instalación o reparación.
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Cliente / Campo</th>
+                        <th>Sistema</th>
+                        <th>Componente</th>
+                        <th>Serial</th>
+                        <th>Tipo interno</th>
+                        <th>Inicio garantía</th>
+                        <th>Runlife garantía</th>
+                        <th>Días garantía</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in componentes %}
+                    <tr>
+                        <td>
+                            <strong>{{ c.sistema.campo.cliente.nombre }}</strong><br>
+                            <span class="text-muted">{{ c.sistema.campo.nombre }}</span>
+                        </td>
+
+                        <td>
+                            <a href="{% url 'runlife:sistema_detail' c.sistema.id %}" class="fw-bold text-decoration-none">
+                                {{ c.sistema.nombre }}
+                            </a>
+                            {% if c.sistema.pozo %}
+                                <br><span class="text-muted">Pozo: {{ c.sistema.pozo }}</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            <strong>{{ c.get_tipo_display }}</strong><br>
+                            <span class="text-muted">
+                                {{ c.descripcion|default:"Sin descripción" }}
+                                {% if c.modelo %} / {{ c.modelo }}{% endif %}
+                            </span>
+                        </td>
+
+                        <td>
+                            <strong>{{ c.serial }}</strong><br>
+                            <span class="text-muted">{{ c.marca|default:"Sin marca" }}</span>
+                        </td>
+
+                        <td>
+                            {% if c.fabricado_por_nosotros and c.reparado_por_nosotros %}
+                                <span class="badge bg-primary">Fabricado / Reparado</span>
+                            {% elif c.fabricado_por_nosotros %}
+                                <span class="badge bg-success">Fabricado</span>
+                            {% elif c.reparado_por_nosotros %}
+                                <span class="badge bg-info text-dark">Reparado</span>
+                            {% elif c.es_marca_impetus %}
+                                <span class="badge bg-secondary">Marca IMPETUS</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark">No marcado</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if c.fecha_inicio_garantia_calc %}
+                                {{ c.fecha_inicio_garantia_calc|date:"d/m/Y" }}
+                            {% else %}
+                                <span class="text-warning fw-bold">Sin fecha</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if c.runlife_garantia_dias is not None %}
+                                <strong>{{ c.runlife_garantia_dias }}</strong> días
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+
+                        <td>{{ c.dias_garantia|default:365 }} días</td>
+
+                        <td>
+                            {% if c.estado_garantia_interna == "EN_GARANTIA" %}
+                                <span class="badge-status">EN GARANTÍA</span>
+                                <br>
+                                <small class="text-success fw-bold">
+                                    Restan {{ c.dias_restantes_garantia }} días
+                                </small>
+                            {% elif c.estado_garantia_interna == "FUERA_GARANTIA" %}
+                                <span class="badge-danger-custom">FUERA DE GARANTÍA</span>
+                                <br>
+                                <small class="text-danger fw-bold">
+                                    Vencida hace {{ c.dias_vencidos_garantia }} días
+                                </small>
+                            {% elif c.estado_garantia_interna == "SIN_FECHA" %}
+                                <span class="badge-warning">SIN FECHA</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark">NO APLICA</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-5">
+                            <div class="fw-bold text-muted">No hay componentes marcados para control de garantía.</div>
+                            <div class="text-muted small">
+                                Marque componentes como fabricados o reparados por nosotros desde el admin o al registrar/reemplazar componentes.
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="help-card mt-3">
+        <strong>Nota:</strong>
+        Para que un equipo aparezca aquí, debe tener marcado
+        <strong>fabricado_por_nosotros</strong> o <strong>reparado_por_nosotros</strong>.
+        También se incluyen automáticamente componentes cuya marca contenga <strong>IMPETUS</strong>.
+    </div>
+</div>
+{% endblock %}

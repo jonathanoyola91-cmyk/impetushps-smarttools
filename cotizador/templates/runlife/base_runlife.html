@@ -87,6 +87,102 @@
         .timeline-item{position:relative;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:12px;font-size:13px;}
         .timeline-item:before{content:"";position:absolute;left:-22px;top:16px;width:13px;height:13px;background:#0d6efd;border-radius:50%;border:3px solid white;}
 
+        /* ===== SCROLL TABLAS RUNLIFE ===== */
+        .table-responsive-custom,
+        .table-responsive {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .table-responsive-custom table,
+        .table-responsive table {
+            min-width: 1050px;
+            width: max-content;
+        }
+
+        .table-responsive-custom::-webkit-scrollbar,
+        .table-responsive::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .table-responsive-custom::-webkit-scrollbar-thumb,
+        .table-responsive::-webkit-scrollbar-thumb {
+            background: #b8c1cc;
+            border-radius: 10px;
+        }
+
+        .table-responsive-custom::-webkit-scrollbar-track,
+        .table-responsive::-webkit-scrollbar-track {
+            background: #edf2f7;
+            border-radius: 10px;
+        }
+
+        .table th,
+        .table td {
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+
+        .table thead th {
+            text-align: left;
+        }
+
+        .table tbody td {
+            text-align: left;
+        }
+
+        .table .col-descripcion,
+        .table .col-componente {
+            min-width: 180px;
+            white-space: normal;
+        }
+
+        .table .col-serial {
+            min-width: 130px;
+        }
+
+        .table .col-modelo {
+            min-width: 160px;
+        }
+
+        .table .col-parte {
+            min-width: 150px;
+        }
+
+        .table .col-fecha {
+            min-width: 150px;
+        }
+
+        /* Compactar panel derecho */
+.right-card {
+    padding: 12px;
+    font-size: 12px;
+}
+
+.right-card h5 {
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.alert-line {
+    padding: 8px;
+    font-size: 12px;
+}
+
+.history-line,
+.timeline-item {
+    padding: 8px;
+    font-size: 12px;
+}
+
+.alert-line div,
+.timeline-item {
+    line-height: 1.25;
+}
+
         @media(max-width:991px){
             .sidebar{width:100%;height:auto;position:relative;}
             .user-box{position:relative;left:auto;right:auto;bottom:auto;margin-top:20px;}
@@ -118,6 +214,12 @@
     <a class="{% if request.resolver_match.url_name == 'componentes' %}active{% endif %}" href="{% url 'runlife:componentes' %}">
         <i class="bi bi-briefcase"></i> Componentes
     </a>
+
+    {% if puede_ver_garantias %}
+    <a class="{% if request.resolver_match.url_name == 'dashboard_garantias' %}active{% endif %}" href="{% url 'runlife:dashboard_garantias' %}">
+        <i class="bi bi-shield-check"></i> Garantías
+    </a>
+    {% endif %}
 
     <a class="{% if request.resolver_match.url_name == 'historial' %}active{% endif %}" href="{% url 'runlife:historial' %}">
         <i class="bi bi-arrow-counterclockwise"></i> Historial de Cambios

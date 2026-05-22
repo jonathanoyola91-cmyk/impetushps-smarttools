@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Prefetch
+from django.db import transaction
+from django.db.models import Prefetch, Q
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
 
@@ -8,6 +9,7 @@ from .models import (
     ClientAccount,
     FieldLocation,
     InjectionSystem,
+    BodegaCampoItem,
     SystemComponent,
     ComponentChangeLog,
     MaintenanceRule,
@@ -34,6 +36,20 @@ import matplotlib.pyplot as plt
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 
+
+def _puede_gestionar_bodega(user):
+    return (
+        user.is_staff
+        or user.is_superuser
+        or user.groups.filter(name__in=[
+            "RUNLIFE_ADMIN",
+            "RUNLIFE_BODEGA",
+            "Gerencia",
+            "gerencia",
+            "Ingeniería",
+            "INGENIERIA",
+        ]).exists()
+    )
 
 def _generar_observacion_monitoreo(monitoreo, sistema, cantidad=5):
     anteriores = list(
@@ -375,13 +391,31 @@ def _puede_gestionar_reglas(user):
     )
 
 
+def _puede_ver_garantias(user):
+    return (
+        user.is_staff
+        or user.is_superuser
+        or user.groups.filter(name__in=[
+            "RUNLIFE_ADMIN",
+            "RUNLIFE_GARANTIAS",
+            "RUNLIFE_REGLAS",
+            "gerencia",
+            "Gerencia",
+            "Ingeniería",
+            "INGENIERIA",
+        ]).exists()
+    )
+
+
 def _runlife_context(request, sidebar_subtitle="RunLife", **extra):
     """Contexto base para que base_runlife.html siempre conozca permisos del usuario."""
     puede = _puede_gestionar_reglas(request.user)
     context = {
         "puede_reglas": puede,
         "puede_gestionar_reglas": puede,
+        "puede_ver_garantias": _puede_ver_garantias(request.user),
         "sidebar_subtitle": sidebar_subtitle,
+        "puede_gestionar_bodega": _puede_gestionar_bodega(request.user),
     }
     context.update(extra)
     return context
@@ -561,6 +595,137 @@ def editar_regla_mantenimiento(request, regla_id):
     ))
 
 
+
+@login_required
+def dashboard_garantias(request):
+    if not _puede_ver_garantias(request.user):
+        messages.error(request, "No tiene permisos para ver el dashboard de garantías.")
+        return redirect("runlife:dashboard")
+
+    campos = _campos_permitidos(request.user)
+
+    componentes = SystemComponent.objects.select_related(
+        "sistema",
+        "sistema__campo",
+        "sistema__campo__cliente",
+        "bodega_item",
+        "bodega_item__campo",
+        "bodega_item__campo__cliente",
+    ).filter(
+        Q(sistema__campo__in=campos) | Q(bodega_item__campo__in=campos),
+    ).filter(
+        Q(origen__in=["IMPETUS_FAB", "IMPETUS_REP"]) |
+        Q(marca__icontains="IMPETUS")
+    ).distinct()
+
+    cliente_id = request.GET.get("cliente")
+    campo_id = request.GET.get("campo")
+    tipo = request.GET.get("tipo")
+    estado = request.GET.get("estado")
+    q = request.GET.get("q", "").strip()
+
+    if cliente_id:
+        componentes = componentes.filter(
+            Q(sistema__campo__cliente_id=cliente_id) | Q(bodega_item__campo__cliente_id=cliente_id)
+        )
+
+    if campo_id:
+        componentes = componentes.filter(
+            Q(sistema__campo_id=campo_id) | Q(bodega_item__campo_id=campo_id)
+        )
+
+    if tipo:
+        componentes = componentes.filter(tipo=tipo)
+
+    if q:
+        componentes = componentes.filter(
+            Q(serial__icontains=q) |
+            Q(modelo__icontains=q) |
+            Q(marca__icontains=q) |
+            Q(descripcion__icontains=q) |
+            Q(sistema__nombre__icontains=q) |
+            Q(sistema__campo__nombre__icontains=q) |
+            Q(sistema__campo__cliente__nombre__icontains=q) |
+            Q(bodega_item__campo__nombre__icontains=q) |
+            Q(bodega_item__campo__cliente__nombre__icontains=q)
+        )
+
+    componentes = componentes.order_by(
+        "sistema__campo__cliente__nombre",
+        "sistema__campo__nombre",
+        "sistema__nombre",
+        "tipo",
+        "serial",
+    )
+
+    componentes_lista = list(componentes)
+
+    en_garantia = []
+    fuera_garantia = []
+    sin_fecha = []
+
+    for componente in componentes_lista:
+        # Compatibilidad con el modelo nuevo:
+        # ahora la garantía se controla por origen + fecha_entrega_cliente.
+        estado_calc = getattr(componente, "estado_garantia_interna", None)
+
+        if not estado_calc:
+            estado_calc = getattr(componente, "estado_garantia", None)
+
+        if not estado_calc:
+            if not getattr(componente, "fecha_entrega_cliente", None):
+                estado_calc = "SIN_FECHA"
+            elif getattr(componente, "en_garantia", False) or getattr(componente, "en_garantia_real", False):
+                estado_calc = "EN_GARANTIA"
+            else:
+                estado_calc = "FUERA_GARANTIA"
+
+        # Atributo auxiliar para el template si se requiere.
+        componente.estado_garantia_dashboard = estado_calc
+
+        if estado_calc == "EN_GARANTIA":
+            en_garantia.append(componente)
+        elif estado_calc == "FUERA_GARANTIA":
+            fuera_garantia.append(componente)
+        elif estado_calc in ["SIN_FECHA", "SIN_ENTREGA"]:
+            sin_fecha.append(componente)
+
+    if estado == "EN_GARANTIA":
+        componentes_lista = en_garantia
+    elif estado == "FUERA_GARANTIA":
+        componentes_lista = fuera_garantia
+    elif estado == "SIN_FECHA":
+        componentes_lista = sin_fecha
+
+    clientes = _clientes_permitidos(request.user)
+    campos_filtro = campos.select_related("cliente").order_by("cliente__nombre", "nombre")
+
+    total_componentes = len(componentes_lista)
+    total_en_garantia = len([c for c in componentes_lista if getattr(c, "estado_garantia_dashboard", "") == "EN_GARANTIA"])
+    total_fuera_garantia = len([c for c in componentes_lista if getattr(c, "estado_garantia_dashboard", "") == "FUERA_GARANTIA"])
+    total_sin_fecha = len([c for c in componentes_lista if getattr(c, "estado_garantia_dashboard", "") in ["SIN_FECHA", "SIN_ENTREGA"]])
+
+    return render(request, "runlife/dashboard_garantias.html", _runlife_context(
+        request,
+        sidebar_subtitle="Garantías",
+        componentes=componentes_lista,
+        clientes=clientes,
+        campos_filtro=campos_filtro,
+        tipos_componentes=SystemComponent.TIPO_COMPONENTE,
+        filtros={
+            "cliente_id": cliente_id or "",
+            "campo_id": campo_id or "",
+            "tipo": tipo or "",
+            "estado": estado or "",
+            "q": q,
+        },
+        total_componentes=total_componentes,
+        total_en_garantia=total_en_garantia,
+        total_fuera_garantia=total_fuera_garantia,
+        total_sin_fecha=total_sin_fecha,
+    ))
+
+
 @login_required
 def dashboard_runlife(request):
     campos = _campos_permitidos(request.user).select_related("cliente")
@@ -684,6 +849,36 @@ def campo_detail(request, campo_id):
     if request.method == "POST":
         accion = request.POST.get("accion")
 
+        if accion == "crear_bodega_item":
+            if not _puede_gestionar_bodega(request.user):
+                messages.error(request, "No tiene permisos para agregar equipos a bodega.")
+                return redirect("runlife:campo_detail", campo_id=campo.id)
+
+            componente = SystemComponent.objects.create(
+                sistema=None,
+                tipo=request.POST.get("tipo"),
+                origen=request.POST.get("origen") or "IMPETUS_REP",
+                descripcion=request.POST.get("descripcion"),
+                marca=request.POST.get("marca") or "IMPETUS",
+                modelo=request.POST.get("modelo"),
+                serial=request.POST.get("serial"),
+                parte_numero=request.POST.get("parte_numero"),
+                fecha_reparacion=request.POST.get("fecha_reparacion") or None,
+                fecha_entrega_cliente=request.POST.get("fecha_entrega_cliente") or timezone.localdate(),
+                dias_garantia=request.POST.get("dias_garantia") or 365,
+                activo=True,
+            )
+
+            BodegaCampoItem.objects.create(
+                campo=campo,
+                componente=componente,
+                fecha_ingreso_bodega=timezone.localdate(),
+                disponible=True,
+            )
+
+            messages.success(request, "Equipo agregado a la bodega del campo.")
+            return redirect("runlife:campo_detail", campo_id=campo.id)
+
         if accion == "cambiar_componente":
             form = ChangeComponentForm(request.POST)
 
@@ -719,6 +914,14 @@ def campo_detail(request, campo_id):
 
                 messages.success(request, "Cambio realizado")
                 return redirect("runlife:campo_detail", campo_id=campo.id)
+                
+    bodega_items = BodegaCampoItem.objects.select_related(
+        "componente",
+        "componente__sistema"
+    ).filter(
+        campo=campo,
+        disponible=True
+    )  
 
     return render(request, "runlife/campo_detail.html", _runlife_context(
         request,
@@ -728,6 +931,7 @@ def campo_detail(request, campo_id):
         sistemas_base=sistemas_base,
         sistema_id=sistema_id,
         componentes=componentes,
+        bodega_items=bodega_items,
         vencidos=vencidos,
         proximos=proximos,
         en_garantia=en_garantia,
@@ -820,6 +1024,31 @@ def _date_from_post(value):
     return None
 
 
+def _tipo_requiere_unico_activo(tipo):
+    """
+    En un sistema solo debe existir un componente activo de estos tipos.
+    Bomba queda excluida porque un sistema puede tener 2, 3 o más bombas.
+    """
+    return tipo in ["MOTOR", "CAMARA", "COOLER", "VSD"]
+
+
+def _existe_tipo_unico_activo(sistema, tipo, excluir_id=None):
+    if not _tipo_requiere_unico_activo(tipo):
+        return False
+
+    qs = SystemComponent.objects.filter(
+        sistema=sistema,
+        tipo=tipo,
+        activo=True,
+        fecha_desinstalacion__isnull=True,
+    )
+
+    if excluir_id:
+        qs = qs.exclude(id=excluir_id)
+
+    return qs.exists()
+
+
 @login_required
 def sistema_detail_runlife(request, sistema_id):
     user = request.user
@@ -851,21 +1080,104 @@ def sistema_detail_runlife(request, sistema_id):
             messages.success(request, "Sistema actualizado correctamente.")
             return redirect("runlife:sistema_detail", sistema_id=sistema.id)
 
+        if accion == "instalar_desde_bodega":
+            # Acción de compatibilidad: ya no se muestra como botón principal al usuario.
+            # Si llega por POST, agrega un componente adicional desde bodega respetando la regla
+            # de un solo MOTOR/CAMARA/COOLER/VSD activo por sistema.
+            item_id = request.POST.get("bodega_item_id")
+            fecha_instalacion = _date_from_post(request.POST.get("fecha_instalacion")) or timezone.localdate()
 
+            item = get_object_or_404(
+                BodegaCampoItem.objects.select_related("componente"),
+                id=item_id,
+                campo=sistema.campo,
+                disponible=True,
+            )
+
+            if _existe_tipo_unico_activo(sistema, item.componente.tipo):
+                messages.error(
+                    request,
+                    f"Ya existe un {item.componente.get_tipo_display()} activo en este sistema. "
+                    "Use Reemplazar componente para consumir bodega sin duplicar."
+                )
+                return redirect("runlife:sistema_detail", sistema_id=sistema.id)
+
+            with transaction.atomic():
+                item.instalar_en_sistema(sistema, fecha_instalacion=fecha_instalacion)
+
+            messages.success(request, "Equipo agregado al sistema desde bodega correctamente.")
+            return redirect("runlife:sistema_detail", sistema_id=sistema.id)
 
         if accion == "agregar_componente":
-            SystemComponent.objects.create(
-                sistema=sistema,
-                tipo=request.POST.get("tipo"),
-                descripcion=request.POST.get("descripcion"),
-                marca=request.POST.get("marca"),
-                modelo=request.POST.get("modelo"),
-                serial=request.POST.get("serial"),
-                parte_numero=request.POST.get("parte_numero"),
-                fecha_instalacion=request.POST.get("fecha_instalacion") or None,
-                fecha_ultimo_mantenimiento=request.POST.get("fecha_ultimo_mantenimiento") or None,
-                activo=True,
-            )
+            bodega_item_id = request.POST.get("bodega_item_id")
+            fecha_instalacion = _date_from_post(request.POST.get("fecha_instalacion")) or timezone.localdate()
+
+            if bodega_item_id:
+                item = get_object_or_404(
+                    BodegaCampoItem.objects.select_related("componente"),
+                    id=bodega_item_id,
+                    campo=sistema.campo,
+                    disponible=True,
+                )
+
+                if _existe_tipo_unico_activo(sistema, item.componente.tipo):
+                    messages.error(
+                        request,
+                        f"Ya existe un {item.componente.get_tipo_display()} activo en este sistema. "
+                        "Para este tipo debe usar Reemplazar componente, no Agregar componente."
+                    )
+                    return redirect("runlife:sistema_detail", sistema_id=sistema.id)
+
+                with transaction.atomic():
+                    item.instalar_en_sistema(sistema, fecha_instalacion=fecha_instalacion)
+
+                    nuevo = item.componente
+                    if _model_has_field(SystemComponent, "fecha_ultimo_mantenimiento"):
+                        nuevo.fecha_ultimo_mantenimiento = None
+                        nuevo.save(update_fields=["fecha_ultimo_mantenimiento", "actualizado_en"])
+
+                messages.success(request, "Componente agregado desde bodega correctamente.")
+                return redirect("runlife:sistema_detail", sistema_id=sistema.id)
+
+            tipo = request.POST.get("tipo")
+
+            if _existe_tipo_unico_activo(sistema, tipo):
+                tipo_label = dict(SystemComponent.TIPO_COMPONENTE).get(tipo, tipo)
+                messages.error(
+                    request,
+                    f"Ya existe un {tipo_label} activo en este sistema. "
+                    "Para Motor, Cámara, Cooler y VSD debe usar Reemplazar componente. "
+                    "Solo Bomba permite varios componentes activos."
+                )
+                return redirect("runlife:sistema_detail", sistema_id=sistema.id)
+
+            nuevo_data = {
+                "sistema": sistema,
+                "tipo": tipo,
+                "descripcion": request.POST.get("descripcion"),
+                "marca": request.POST.get("marca"),
+                "modelo": request.POST.get("modelo"),
+                "serial": request.POST.get("serial"),
+                "parte_numero": request.POST.get("parte_numero"),
+                "fecha_instalacion": fecha_instalacion,
+                "fecha_ultimo_mantenimiento": request.POST.get("fecha_ultimo_mantenimiento") or None,
+                "activo": True,
+            }
+
+            if _model_has_field(SystemComponent, "origen"):
+                nuevo_data["origen"] = request.POST.get("origen") or "CLIENTE"
+            if _model_has_field(SystemComponent, "fecha_entrega_cliente"):
+                nuevo_data["fecha_entrega_cliente"] = request.POST.get("fecha_entrega_cliente") or None
+            if _model_has_field(SystemComponent, "fabricado_por_nosotros"):
+                nuevo_data["fabricado_por_nosotros"] = request.POST.get("fabricado_por_nosotros") == "on"
+            if _model_has_field(SystemComponent, "reparado_por_nosotros"):
+                nuevo_data["reparado_por_nosotros"] = request.POST.get("reparado_por_nosotros") == "on"
+            if _model_has_field(SystemComponent, "fecha_garantia_inicio"):
+                nuevo_data["fecha_garantia_inicio"] = request.POST.get("fecha_garantia_inicio") or nuevo_data["fecha_instalacion"]
+            if _model_has_field(SystemComponent, "dias_garantia"):
+                nuevo_data["dias_garantia"] = request.POST.get("dias_garantia") or 365
+
+            SystemComponent.objects.create(**nuevo_data)
 
             messages.success(request, "Componente agregado correctamente.")
             return redirect("runlife:sistema_detail", sistema_id=sistema.id)
@@ -922,47 +1234,98 @@ def sistema_detail_runlife(request, sistema_id):
             )
 
             fecha_cambio = _date_from_post(request.POST.get("fecha_cambio")) or timezone.localdate()
+            bodega_item_id = request.POST.get("bodega_item_id")
             nuevo_serial = request.POST.get("nuevo_serial", "").strip()
             nuevo_modelo = request.POST.get("nuevo_modelo", "").strip()
             nuevo_parte = request.POST.get("nuevo_parte", "").strip()
             motivo_cambio = request.POST.get("motivo_cambio", "").strip()
 
-            if not nuevo_serial:
-                messages.error(request, "Debe ingresar el serial del nuevo componente.")
-                return redirect("runlife:sistema_detail", sistema_id=sistema.id)
-
             runlife_anterior = comp.runlife_dias
 
-            comp.fecha_desinstalacion = fecha_cambio
-            comp.activo = False
-            comp.save()
+            with transaction.atomic():
+                if bodega_item_id:
+                    item = get_object_or_404(
+                        BodegaCampoItem.objects.select_related("componente"),
+                        id=bodega_item_id,
+                        campo=sistema.campo,
+                        disponible=True,
+                    )
 
-            nuevo = SystemComponent.objects.create(
-                sistema=comp.sistema,
-                tipo=comp.tipo,
-                descripcion=comp.descripcion,
-                marca=comp.marca,
-                modelo=nuevo_modelo or comp.modelo,
-                serial=nuevo_serial,
-                parte_numero=nuevo_parte or comp.parte_numero,
-                fecha_instalacion=fecha_cambio,
-                activo=True,
-            )
+                    nuevo = item.componente
 
-            log_data = {
-                "sistema": comp.sistema,
-                "componente_anterior": comp,
-                "componente_nuevo": nuevo,
-                "tipo": comp.tipo,
-                "fecha_cambio": fecha_cambio,
-                "runlife_anterior_dias": runlife_anterior,
-                "creado_por": request.user,
-            }
+                    if nuevo.tipo != comp.tipo:
+                        messages.error(
+                            request,
+                            "El equipo seleccionado en bodega no coincide con el tipo del componente actual. "
+                            "Para evitar duplicados, seleccione un equipo del mismo tipo."
+                        )
+                        return redirect("runlife:sistema_detail", sistema_id=sistema.id)
 
-            if _model_has_field(ComponentChangeLog, "motivo_cambio"):
-                log_data["motivo_cambio"] = motivo_cambio
+                    comp.fecha_desinstalacion = fecha_cambio
+                    comp.activo = False
+                    comp.save(update_fields=["fecha_desinstalacion", "activo", "actualizado_en"])
 
-            ComponentChangeLog.objects.create(**log_data)
+                    item.instalar_en_sistema(sistema, fecha_instalacion=fecha_cambio)
+
+                    # El componente que viene de bodega inicia ciclo de mantenimiento desde cero
+                    # salvo que luego el usuario registre un mantenimiento.
+                    if _model_has_field(SystemComponent, "fecha_ultimo_mantenimiento"):
+                        nuevo.fecha_ultimo_mantenimiento = None
+                        nuevo.save(update_fields=["fecha_ultimo_mantenimiento", "actualizado_en"])
+
+                else:
+                    if not nuevo_serial:
+                        messages.error(
+                            request,
+                            "Debe seleccionar un equipo de bodega o ingresar el serial del nuevo componente."
+                        )
+                        return redirect("runlife:sistema_detail", sistema_id=sistema.id)
+
+                    comp.fecha_desinstalacion = fecha_cambio
+                    comp.activo = False
+                    comp.save(update_fields=["fecha_desinstalacion", "activo", "actualizado_en"])
+
+                    nuevo_data = {
+                        "sistema": comp.sistema,
+                        "tipo": comp.tipo,
+                        "descripcion": comp.descripcion,
+                        "marca": comp.marca,
+                        "modelo": nuevo_modelo or comp.modelo,
+                        "serial": nuevo_serial,
+                        "parte_numero": nuevo_parte or comp.parte_numero,
+                        "fecha_instalacion": fecha_cambio,
+                        "activo": True,
+                    }
+
+                    if _model_has_field(SystemComponent, "origen"):
+                        nuevo_data["origen"] = request.POST.get("origen") or comp.origen
+                    if _model_has_field(SystemComponent, "fecha_entrega_cliente"):
+                        nuevo_data["fecha_entrega_cliente"] = request.POST.get("fecha_entrega_cliente") or None
+                    if _model_has_field(SystemComponent, "fabricado_por_nosotros"):
+                        nuevo_data["fabricado_por_nosotros"] = request.POST.get("fabricado_por_nosotros") == "on"
+                    if _model_has_field(SystemComponent, "reparado_por_nosotros"):
+                        nuevo_data["reparado_por_nosotros"] = request.POST.get("reparado_por_nosotros") == "on"
+                    if _model_has_field(SystemComponent, "fecha_garantia_inicio"):
+                        nuevo_data["fecha_garantia_inicio"] = request.POST.get("fecha_garantia_inicio") or fecha_cambio
+                    if _model_has_field(SystemComponent, "dias_garantia"):
+                        nuevo_data["dias_garantia"] = request.POST.get("dias_garantia") or 365
+
+                    nuevo = SystemComponent.objects.create(**nuevo_data)
+
+                log_data = {
+                    "sistema": comp.sistema,
+                    "componente_anterior": comp,
+                    "componente_nuevo": nuevo,
+                    "tipo": comp.tipo,
+                    "fecha_cambio": fecha_cambio,
+                    "runlife_anterior_dias": runlife_anterior,
+                    "creado_por": request.user,
+                }
+
+                if _model_has_field(ComponentChangeLog, "motivo_cambio"):
+                    log_data["motivo_cambio"] = motivo_cambio
+
+                ComponentChangeLog.objects.create(**log_data)
 
             messages.success(request, "Componente reemplazado correctamente.")
             return redirect("runlife:sistema_detail", sistema_id=sistema.id)
@@ -1004,6 +1367,13 @@ def sistema_detail_runlife(request, sistema_id):
         else:
             en_garantia.append(c)
 
+    bodega_items = BodegaCampoItem.objects.select_related(
+        "componente"
+    ).filter(
+        campo=sistema.campo,
+        disponible=True
+    ).order_by("componente__tipo", "componente__serial")
+ 
     context = {
         "sistema": sistema,
         "campo": sistema.campo,
@@ -1017,6 +1387,8 @@ def sistema_detail_runlife(request, sistema_id):
         "total_componentes": componentes_activos.count(),
         "total_alertas": len(proximos) + len(vencidos),
         "sidebar_subtitle": sistema.campo.cliente.nombre,
+        "bodega_items": bodega_items,
+         
     }
 
     context.update(_runlife_context(request, sidebar_subtitle=sistema.campo.cliente.nombre))
