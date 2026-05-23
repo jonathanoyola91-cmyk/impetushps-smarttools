@@ -1401,7 +1401,7 @@ def sistema_detail_runlife(request, sistema_id):
                 "sistema": sistema,
                 "tipo": tipo,
                 "descripcion": request.POST.get("descripcion"),
-                "marca": request.POST.get("marca"),
+                "marca": request.POST.get("nuevo_marca") or comp.marca,
                 "modelo": request.POST.get("modelo"),
                 "serial": request.POST.get("serial"),
                 "parte_numero": request.POST.get("parte_numero"),
