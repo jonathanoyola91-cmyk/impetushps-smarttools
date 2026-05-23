@@ -1406,6 +1406,7 @@ def sistema_detail_runlife(request, sistema_id):
                 "serial": request.POST.get("serial"),
                 "parte_numero": request.POST.get("parte_numero"),
                 "fecha_instalacion": fecha_instalacion,
+                "fecha_entrega_cliente": fecha_instalacion,
                 "fecha_ultimo_mantenimiento": request.POST.get("fecha_ultimo_mantenimiento") or None,
                 "activo": True,
             }
