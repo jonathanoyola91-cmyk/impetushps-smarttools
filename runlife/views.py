@@ -849,8 +849,11 @@ def dashboard_garantias(request):
     ).filter(
         Q(sistema__campo__in=campos) | Q(bodega_item__campo__in=campos),
     ).filter(
+        tipo__in=["BOMBA", "CAMARA", "COOLER"]
+    ).filter(
         Q(origen__in=["IMPETUS_FAB", "IMPETUS_REP"]) |
-        Q(marca__icontains="IMPETUS")
+        Q(marca__icontains="IMPETUS") |
+        Q(modelo__icontains="IMPETUS")
     ).distinct()
 
     cliente_id = request.GET.get("cliente")

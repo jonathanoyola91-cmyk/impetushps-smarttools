@@ -721,7 +721,10 @@ class SystemComponent(models.Model):
 
     @property
     def en_garantia_interna(self):
-        if not self.es_impetus:
+        if not self.es_impetus and not self.es_marca_impetus:
+            return False
+
+        if self.tipo not in ["BOMBA", "CAMARA", "COOLER"]:
             return False
 
         dias = self.runlife_garantia_dias
