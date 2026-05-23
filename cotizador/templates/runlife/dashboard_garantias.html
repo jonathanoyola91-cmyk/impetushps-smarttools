@@ -151,16 +151,29 @@
                     {% for c in componentes %}
                     <tr>
                         <td>
-                            <strong>{{ c.sistema.campo.cliente.nombre }}</strong><br>
-                            <span class="text-muted">{{ c.sistema.campo.nombre }}</span>
+                            {% if c.sistema_id %}
+                                <strong>{{ c.sistema.campo.cliente.nombre }}</strong><br>
+                                <span class="text-muted">{{ c.sistema.campo.nombre }}</span>
+                            {% elif c.bodega_item %}
+                                <strong>{{ c.bodega_item.campo.cliente.nombre }}</strong><br>
+                                <span class="text-muted">{{ c.bodega_item.campo.nombre }}</span>
+                            {% else %}
+                                <span class="text-muted">Sin ubicación</span>
+                            {% endif %}
                         </td>
 
                         <td>
-                            <a href="{% url 'runlife:sistema_detail' c.sistema.id %}" class="fw-bold text-decoration-none">
-                                {{ c.sistema.nombre }}
-                            </a>
-                            {% if c.sistema.pozo %}
-                                <br><span class="text-muted">Pozo: {{ c.sistema.pozo }}</span>
+                            {% if c.sistema_id %}
+                                <a href="{% url 'runlife:sistema_detail' c.sistema_id %}" class="fw-bold text-decoration-none">
+                                    {{ c.sistema.nombre }}
+                                </a>
+                                {% if c.sistema.pozo %}
+                                    <br><span class="text-muted">Pozo: {{ c.sistema.pozo }}</span>
+                                {% endif %}
+                            {% elif c.bodega_item %}
+                                <span class="badge bg-warning text-dark">En bodega</span>
+                            {% else %}
+                                <span class="text-muted">Sin sistema</span>
                             {% endif %}
                         </td>
 
