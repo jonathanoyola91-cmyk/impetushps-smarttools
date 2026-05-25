@@ -22,12 +22,24 @@
         <form method="post" class="row g-3">
             {% csrf_token %}
 
+            {% if form.non_field_errors %}
+                <div class="col-12">
+                    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                </div>
+            {% endif %}
+
             {% for field in form %}
-                <div class="col-md-4">
-                    <label class="form-label">{{ field.label }}</label>
+                <div class="{% if field.name == 'sistemas' %}col-12{% else %}col-md-4{% endif %}">
+                    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
                     {{ field }}
 
-                    {% if field.help_text %}
+                    {% if field.name == "sistemas" %}
+                        <small class="text-muted d-block mt-1">
+                            Al seleccionar un campo se cargarán sus sistemas. Puede seleccionar varios con Ctrl + clic.
+                            Si no selecciona ninguno, el límite aplicará para todo el campo.
+                        </small>
+                        <div id="sistemasResumen" class="small text-primary mt-1"></div>
+                    {% elif field.help_text %}
                         <small class="text-muted">{{ field.help_text }}</small>
                     {% endif %}
 
@@ -56,4 +68,69 @@
     </div>
 
 </div>
+
+<script>
+(function () {
+    const campoSelect = document.getElementById("id_campo");
+    const sistemasSelect = document.getElementById("id_sistemas");
+    const resumen = document.getElementById("sistemasResumen");
+
+    if (!campoSelect || !sistemasSelect) return;
+
+    function actualizarResumen() {
+        const total = sistemasSelect.options.length;
+        const seleccionados = Array.from(sistemasSelect.selectedOptions).length;
+
+        if (!total) {
+            resumen.textContent = "Seleccione un campo para cargar los sistemas disponibles.";
+        } else if (!seleccionados) {
+            resumen.textContent = `0 de ${total} sistemas seleccionados. Aplicará como límite general del campo.`;
+        } else {
+            resumen.textContent = `${seleccionados} de ${total} sistemas seleccionados.`;
+        }
+    }
+
+    function cargarSistemas(campoId, seleccionarTodos) {
+        if (!campoId) {
+            sistemasSelect.innerHTML = "";
+            actualizarResumen();
+            return;
+        }
+
+        fetch("{% url 'runlife:sistemas_por_campo' 0 %}".replace("0", campoId))
+            .then(response => response.json())
+            .then(data => {
+                const seleccionadosActuales = new Set(
+                    Array.from(sistemasSelect.selectedOptions).map(option => option.value)
+                );
+
+                sistemasSelect.innerHTML = "";
+
+                data.forEach(sistema => {
+                    const option = document.createElement("option");
+                    option.value = sistema.id;
+                    option.textContent = sistema.nombre;
+
+                    if (seleccionarTodos || seleccionadosActuales.has(String(sistema.id))) {
+                        option.selected = true;
+                    }
+
+                    sistemasSelect.appendChild(option);
+                });
+
+                actualizarResumen();
+            })
+            .catch(() => {
+                resumen.textContent = "No fue posible cargar los sistemas del campo.";
+            });
+    }
+
+    campoSelect.addEventListener("change", function () {
+        cargarSistemas(this.value, true);
+    });
+
+    sistemasSelect.addEventListener("change", actualizarResumen);
+    actualizarResumen();
+})();
+</script>
 {% endblock %}

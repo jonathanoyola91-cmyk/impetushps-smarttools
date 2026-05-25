@@ -36,6 +36,7 @@
                         <th>Tipo componente</th>
                         <th>Cliente</th>
                         <th>Campo</th>
+                        <th>Sistemas</th>
                         <th>Horas</th>
                         <th>Días</th>
                         <th>Alerta</th>
@@ -49,6 +50,13 @@
                             <td><strong>{{ r.get_tipo_display }}</strong></td>
                             <td>{{ r.cliente.nombre|default:"General" }}</td>
                             <td>{{ r.campo.nombre|default:"General" }}</td>
+                            <td>
+                                {% for sistema in r.sistemas.all %}
+                                    <span class="badge bg-light text-dark border me-1 mb-1">{{ sistema.nombre }}</span>
+                                {% empty %}
+                                    <span class="badge bg-primary">General</span>
+                                {% endfor %}
+                            </td>
                             <td>{{ r.horas_mantenimiento }} h</td>
                             <td>
                                 {% if r.dias_mantenimiento %}
@@ -77,7 +85,7 @@
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="8" class="text-center text-muted py-4">
+                            <td colspan="9" class="text-center text-muted py-4">
                                 No hay reglas creadas.
                             </td>
                         </tr>

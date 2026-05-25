@@ -25,6 +25,7 @@
                         <th>Cliente</th>
                         <th>Campo</th>
                         <th>Nombre</th>
+                        <th>Sistemas</th>
                         <th>Vib. Alerta</th>
                         <th>Vib. Crítico</th>
                         <th>Temp. Alerta</th>
@@ -42,6 +43,21 @@
                             <td>{{ l.campo.cliente.nombre }}</td>
                             <td><strong>{{ l.campo.nombre }}</strong></td>
                             <td>{{ l.nombre }}</td>
+                            <td>
+                                {% if l.sistemas.all %}
+                                    {% for sistema in l.sistemas.all %}
+                                        <span class="badge bg-light text-dark border me-1 mb-1">{{ sistema.nombre }}</span>
+                                    {% empty %}
+                                        {% if l.sistema %}
+                                            <span class="badge bg-light text-dark border">{{ l.sistema.nombre }}</span>
+                                        {% else %}
+                                            <span class="badge bg-primary">Todo el campo</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="badge bg-primary">Todo el campo</span>
+                                {% endif %}
+                            </td>
                             <td>{{ l.vib_alerta }} mm/s</td>
                             <td>{{ l.vib_critico }} mm/s</td>
                             <td>{{ l.temp_alerta }} °C</td>
@@ -63,7 +79,7 @@
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="11" class="text-center text-muted">
+                            <td colspan="12" class="text-center text-muted">
                                 No hay límites operativos creados.
                             </td>
                         </tr>

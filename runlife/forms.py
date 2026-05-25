@@ -17,7 +17,7 @@ class OperationalLimitForm(forms.ModelForm):
             "dp_alerta",
             "dp_critico",
             "activo",
-            "sistema",
+            "sistemas",
             "presion_succion_min",
             "presion_succion_max",
             "presion_descarga_min",
@@ -39,7 +39,7 @@ class OperationalLimitForm(forms.ModelForm):
             "dp_critico": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
 
             "activo": forms.CheckboxInput(attrs={"class": "form-check-input"}),
-            "sistema": forms.Select(attrs={"class": "form-select"}),
+            "sistemas": forms.SelectMultiple(attrs={"class": "form-select", "size": "8"}),
 
             "presion_succion_min": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
             "presion_succion_max": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
@@ -48,6 +48,28 @@ class OperationalLimitForm(forms.ModelForm):
             "caudal_min": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
             "caudal_max": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields["sistemas"].required = False
+        self.fields["sistemas"].label = "Sistemas a los que aplica"
+        self.fields["sistemas"].help_text = "Seleccione uno o varios sistemas. Si no selecciona ninguno, el límite aplica a todo el campo."
+        self.fields["sistemas"].queryset = InjectionSystem.objects.none()
+
+        campo_id = None
+
+        if self.data.get("campo"):
+            campo_id = self.data.get("campo")
+        elif self.instance and self.instance.pk and self.instance.campo_id:
+            campo_id = self.instance.campo_id
+
+        if campo_id:
+            self.fields["sistemas"].queryset = InjectionSystem.objects.filter(
+                campo_id=campo_id,
+                activo=True,
+            ).order_by("nombre")
+
 
 class OperationalMonitoringForm(forms.ModelForm):
     class Meta:
@@ -99,6 +121,7 @@ class MaintenanceRuleForm(forms.ModelForm):
         fields = [
             "cliente",
             "campo",
+            "sistemas",
             "tipo",
             "horas_mantenimiento",
             "dias_mantenimiento",
@@ -108,12 +131,34 @@ class MaintenanceRuleForm(forms.ModelForm):
         widgets = {
             "cliente": forms.Select(attrs={"class": "form-select"}),
             "campo": forms.Select(attrs={"class": "form-select"}),
+            "sistemas": forms.SelectMultiple(attrs={"class": "form-select", "size": "8"}),
             "tipo": forms.Select(attrs={"class": "form-select"}),
             "horas_mantenimiento": forms.NumberInput(attrs={"class": "form-control"}),
             "dias_mantenimiento": forms.NumberInput(attrs={"class": "form-control"}),
             "alerta_porcentaje": forms.NumberInput(attrs={"class": "form-control"}),
             "activo": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields["sistemas"].required = False
+        self.fields["sistemas"].label = "Sistemas a los que aplica"
+        self.fields["sistemas"].help_text = "Seleccione los sistemas específicos. Si no selecciona ninguno, la regla aplica según cliente/campo."
+        self.fields["sistemas"].queryset = InjectionSystem.objects.none()
+
+        campo_id = None
+
+        if self.data.get("campo"):
+            campo_id = self.data.get("campo")
+        elif self.instance and self.instance.pk and self.instance.campo_id:
+            campo_id = self.instance.campo_id
+
+        if campo_id:
+            self.fields["sistemas"].queryset = InjectionSystem.objects.filter(
+                campo_id=campo_id,
+                activo=True,
+            ).order_by("nombre")
 
 
 class InjectionSystemForm(forms.ModelForm):

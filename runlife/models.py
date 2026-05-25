@@ -12,12 +12,21 @@ class OperationalLimit(models.Model):
         related_name="limites_operativos"
     )
 
+    # Compatibilidad: este campo conserva límites antiguos creados para un solo sistema.
+    # Los nuevos límites masivos usan el campo ManyToMany "sistemas".
     sistema = models.ForeignKey(
         "runlife.InjectionSystem",
         on_delete=models.CASCADE,
         null=True,
         blank=True,
         related_name="limites_operativos"
+    )
+
+    sistemas = models.ManyToManyField(
+        "runlife.InjectionSystem",
+        blank=True,
+        related_name="limites_operativos_masivos",
+        help_text="Seleccione los sistemas a los que aplica este límite. Si se deja vacío, aplica a todo el campo."
     )
 
     nombre = models.CharField(max_length=120, default="Límites estándar")
@@ -229,6 +238,16 @@ class OperationalMonitoring(models.Model):
     def limite_operativo(self):
         from .models import OperationalLimit
 
+        # 1) Límite masivo asociado directamente a este sistema.
+        limite = OperationalLimit.objects.filter(
+            sistemas=self.sistema,
+            activo=True
+        ).first()
+
+        if limite:
+            return limite
+
+        # 2) Compatibilidad con límites antiguos que usaban ForeignKey sistema.
         limite = OperationalLimit.objects.filter(
             sistema=self.sistema,
             activo=True
@@ -237,6 +256,8 @@ class OperationalMonitoring(models.Model):
         if limite:
             return limite
 
+        # 3) Límite general del campo. Si el límite no tiene sistemas seleccionados,
+        # aplica como estándar para todo el campo.
         return OperationalLimit.objects.filter(
             campo=self.sistema.campo,
             activo=True
@@ -361,6 +382,13 @@ class MaintenanceRule(models.Model):
         blank=True,
         null=True,
         related_name="reglas_mantenimiento"
+    )
+
+    sistemas = models.ManyToManyField(
+        "InjectionSystem",
+        blank=True,
+        related_name="reglas_mantenimiento_sistemas",
+        help_text="Seleccione los sistemas a los que aplica esta regla. Si se deja vacío, aplica a todo el campo o cliente."
     )
      
 
@@ -562,19 +590,25 @@ class SystemComponent(models.Model):
         campo = getattr(self.sistema, "campo", None)
         cliente = getattr(campo, "cliente", None) if campo else None
 
-        # 1) Regla específica por cliente + campo
+        # 1) Regla masiva asociada directamente a este sistema.
+        if self.sistema_id:
+            regla = qs.filter(sistemas=self.sistema).first()
+            if regla:
+                return regla
+
+        # 2) Regla específica por cliente + campo.
         if cliente and campo:
             regla = qs.filter(cliente=cliente, campo=campo).first()
             if regla:
                 return regla
 
-        # 2) Regla por cliente
+        # 3) Regla por cliente.
         if cliente:
             regla = qs.filter(cliente=cliente, campo__isnull=True).first()
             if regla:
                 return regla
 
-        # 3) Regla global por tipo
+        # 4) Regla global por tipo.
         return qs.filter(cliente__isnull=True, campo__isnull=True).first()
 
     @property

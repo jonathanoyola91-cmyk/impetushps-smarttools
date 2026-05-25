@@ -22,7 +22,7 @@ from .forms import MaintenanceRuleForm
 from .forms import OperationalMonitoringForm
 from .models import OperationalLimit
 from .forms import OperationalLimitForm
-from django.http import HttpResponse, HttpResponseForbidden
+from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 
@@ -259,7 +259,9 @@ def limites_operativos(request):
     campos = _campos_permitidos(request.user)
 
     limites = OperationalLimit.objects.select_related(
-        "campo", "campo__cliente"
+        "campo", "campo__cliente", "sistema"
+    ).prefetch_related(
+        "sistemas"
     ).filter(
         campo__in=campos
     ).order_by("campo__cliente__nombre", "campo__nombre")
@@ -271,27 +273,89 @@ def limites_operativos(request):
     ))
 
 
+def _configurar_form_limite_por_usuario(form, user):
+    campos = _campos_permitidos(user)
+    form.fields["campo"].queryset = campos
+
+    campo_id = form.data.get("campo") or getattr(form.instance, "campo_id", None)
+
+    if campo_id and campos.filter(id=campo_id).exists():
+        form.fields["sistemas"].queryset = InjectionSystem.objects.filter(
+            campo_id=campo_id,
+            activo=True,
+        ).order_by("nombre")
+    else:
+        form.fields["sistemas"].queryset = InjectionSystem.objects.none()
+
+    return form
+
+
+def _validar_sistemas_de_limite(form, user):
+    campo = form.cleaned_data.get("campo")
+    sistemas = form.cleaned_data.get("sistemas")
+
+    if not campo:
+        raise ValueError("Debe seleccionar un campo.")
+
+    if not _campos_permitidos(user).filter(id=campo.id).exists():
+        raise ValueError("No tiene permisos para este campo.")
+
+    if sistemas:
+        sistemas_invalidos = sistemas.exclude(campo=campo)
+        if sistemas_invalidos.exists():
+            raise ValueError("Todos los sistemas seleccionados deben pertenecer al campo elegido.")
+
+    return True
+
+
 @login_required
-def crear_limite_operativo(request):
+def sistemas_por_campo(request, campo_id):
     campos = _campos_permitidos(request.user)
 
+    if not campos.filter(id=campo_id).exists():
+        return JsonResponse([], safe=False)
+
+    sistemas = InjectionSystem.objects.filter(
+        campo_id=campo_id,
+        activo=True,
+    ).order_by("nombre")
+
+    data = [
+        {"id": sistema.id, "nombre": sistema.nombre}
+        for sistema in sistemas
+    ]
+
+    return JsonResponse(data, safe=False)
+
+
+@login_required
+def crear_limite_operativo(request):
     if request.method == "POST":
         form = OperationalLimitForm(request.POST)
-        form.fields["campo"].queryset = campos
+        _configurar_form_limite_por_usuario(form, request.user)
 
         if form.is_valid():
-            limite = form.save(commit=False)
+            try:
+                _validar_sistemas_de_limite(form, request.user)
+                limite = form.save(commit=False)
+                limite.sistema = None  # Los nuevos límites usan selección masiva por sistemas.
+                limite.save()
+                form.save_m2m()
 
-            if not campos.filter(id=limite.campo_id).exists():
-                messages.error(request, "No tiene permisos para este campo.")
+                total_sistemas = limite.sistemas.count()
+                if total_sistemas:
+                    messages.success(request, f"Límite operativo creado correctamente para {total_sistemas} sistema(s).")
+                else:
+                    messages.success(request, "Límite operativo creado correctamente para todo el campo.")
+
                 return redirect("runlife:limites_operativos")
+            except ValueError as exc:
+                form.add_error(None, str(exc))
 
-            limite.save()
-            messages.success(request, "Límite operativo creado correctamente.")
-            return redirect("runlife:limites_operativos")
+        messages.error(request, "Revise los datos del formulario.")
     else:
         form = OperationalLimitForm()
-        form.fields["campo"].queryset = campos
+        _configurar_form_limite_por_usuario(form, request.user)
 
     return render(request, "runlife/limite_operativo_form.html", _runlife_context(
         request,
@@ -307,15 +371,24 @@ def editar_limite_operativo(request, limite_id):
 
     if request.method == "POST":
         form = OperationalLimitForm(request.POST, instance=limite)
-        form.fields["campo"].queryset = campos
+        _configurar_form_limite_por_usuario(form, request.user)
 
         if form.is_valid():
-            form.save()
-            messages.success(request, "Límite operativo actualizado correctamente.")
-            return redirect("runlife:limites_operativos")
+            try:
+                _validar_sistemas_de_limite(form, request.user)
+                limite = form.save(commit=False)
+                limite.sistema = None  # Se migra el límite editado al esquema masivo.
+                limite.save()
+                form.save_m2m()
+                messages.success(request, "Límite operativo actualizado correctamente.")
+                return redirect("runlife:limites_operativos")
+            except ValueError as exc:
+                form.add_error(None, str(exc))
+
+        messages.error(request, "Revise los datos del formulario.")
     else:
         form = OperationalLimitForm(instance=limite)
-        form.fields["campo"].queryset = campos
+        _configurar_form_limite_por_usuario(form, request.user)
 
     return render(request, "runlife/limite_operativo_form.html", _runlife_context(
         request,
@@ -323,6 +396,7 @@ def editar_limite_operativo(request, limite_id):
         form=form,
         limite=limite,
     ))
+
 @login_required
 def monitoreo_sistema(request, sistema_id):
     sistema = get_object_or_404(InjectionSystem, id=sistema_id)
@@ -657,8 +731,22 @@ def importar_componentes_excel(request):
 
 
 def _configurar_form_regla_por_usuario(form, user):
-    """Limita Cliente/Campo del formulario según acceso del usuario."""
+    """Limita Cliente/Campo/Sistemas del formulario según acceso del usuario."""
     if _es_admin_runlife(user):
+        campos_admin = FieldLocation.objects.filter(activo=True).select_related("cliente").order_by("cliente__nombre", "nombre")
+        if "campo" in form.fields:
+            form.fields["campo"].queryset = campos_admin
+        if "cliente" in form.fields:
+            form.fields["cliente"].queryset = ClientAccount.objects.all().order_by("nombre")
+        if "sistemas" in form.fields:
+            campo_id = form.data.get("campo") or getattr(form.instance, "campo_id", None)
+            if campo_id:
+                form.fields["sistemas"].queryset = InjectionSystem.objects.filter(
+                    campo_id=campo_id,
+                    activo=True,
+                ).order_by("nombre")
+            else:
+                form.fields["sistemas"].queryset = InjectionSystem.objects.none()
         return form
 
     campos = _campos_permitidos(user).select_related("cliente").order_by("cliente__nombre", "nombre")
@@ -667,6 +755,16 @@ def _configurar_form_regla_por_usuario(form, user):
     if "campo" in form.fields:
         form.fields["campo"].queryset = campos
         form.fields["campo"].empty_label = "Seleccione campo permitido"
+
+    if "sistemas" in form.fields:
+        campo_id = form.data.get("campo") or getattr(form.instance, "campo_id", None)
+        if campo_id and campos.filter(id=campo_id).exists():
+            form.fields["sistemas"].queryset = InjectionSystem.objects.filter(
+                campo_id=campo_id,
+                activo=True,
+            ).order_by("nombre")
+        else:
+            form.fields["sistemas"].queryset = InjectionSystem.objects.none()
 
     if "cliente" in form.fields:
         form.fields["cliente"].queryset = clientes
@@ -721,6 +819,12 @@ def _guardar_regla_segura(form, user):
         # Evita que el usuario relacione la regla con un cliente distinto al campo.
         regla.cliente = campo_permitido.cliente
 
+    sistemas = form.cleaned_data.get("sistemas")
+    if sistemas and regla.campo_id:
+        sistemas_invalidos = sistemas.exclude(campo_id=regla.campo_id)
+        if sistemas_invalidos.exists():
+            raise ValueError("Todos los sistemas seleccionados deben pertenecer al campo de la regla.")
+
     regla.save()
     form.save_m2m()
     return regla
@@ -764,6 +868,8 @@ def reglas_mantenimiento(request):
     reglas = MaintenanceRule.objects.select_related(
         "cliente",
         "campo",
+    ).prefetch_related(
+        "sistemas"
     )
 
     if not _es_admin_runlife(request.user):
