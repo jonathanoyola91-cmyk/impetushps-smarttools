@@ -1069,6 +1069,23 @@ def campo_detail(request, campo_id):
             fuera_garantia.append(c)
         else:
             en_garantia.append(c)
+    
+    from collections import defaultdict
+
+    alertas_por_sistema = defaultdict(int)
+
+    for c in componentes:
+        if c.estado_mantenimiento == "VENCIDO":
+            sistema_nombre = c.sistema.nombre if c.sistema else "SIN SISTEMA"
+            alertas_por_sistema[sistema_nombre] += 1
+
+    alertas_resumen = [
+        {
+            "sistema": sistema,
+            "total": total
+        }
+        for sistema, total in alertas_por_sistema.items()
+    ]
 
     total_componentes = componentes.count()
 
@@ -1180,6 +1197,7 @@ def campo_detail(request, campo_id):
         bodega_items=bodega_items,
         vencidos=vencidos,
         proximos=proximos,
+        alertas_resumen=alertas_resumen,
         en_garantia=en_garantia,
         fuera_garantia=fuera_garantia,
         total_componentes=total_componentes,

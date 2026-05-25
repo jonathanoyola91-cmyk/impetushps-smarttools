@@ -421,24 +421,18 @@
                     <h5 class="mb-0">Alertas de Mantenimiento</h5>
                 </div>
 
-                {% for c in vencidos %}
+                {% for alerta in alertas_resumen %}
                     <div class="alert-line">
                         <i class="bi bi-exclamation-triangle-fill text-danger fs-5"></i>
                         <div>
-                            <strong>{{ c.sistema.nombre }} - {{ c.descripcion|default:c.get_tipo_display }}</strong><br>
-                            <span class="text-danger">Mantenimiento vencido</span>
+                            <strong>Sistema {{ alerta.sistema }}</strong><br>
+                            <span class="text-danger">
+                                {{ alerta.total }} mantenimiento{{ alerta.total|pluralize }} vencido{{ alerta.total|pluralize }}
+                            </span>
                         </div>
                     </div>
-                {% endfor %}
-
-                {% for c in proximos %}
-                    <div class="alert-line">
-                        <i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
-                        <div>
-                            <strong>{{ c.sistema.nombre }} - {{ c.descripcion|default:c.get_tipo_display }}</strong><br>
-                            <span class="text-muted">Próximo mantenimiento</span>
-                        </div>
-                    </div>
+                {% empty %}
+                    <p class="text-muted mb-0">No hay alertas de mantenimiento.</p>
                 {% endfor %}
 
                 {% if not vencidos and not proximos %}
