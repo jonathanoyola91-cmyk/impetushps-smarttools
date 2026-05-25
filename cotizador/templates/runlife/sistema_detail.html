@@ -1,5 +1,32 @@
 {% extends "runlife/base_runlife.html" %}
-{% block title %}RunLife - Sistema{% endblock %}
+{% block title %}RunLife - Sistema
+<script>
+(function(){
+    const motivo = document.getElementById('motivoTipoCambio');
+    const esFalla = document.getElementById('esFallaMtbf');
+    const componente = document.getElementById('reemplazoComponenteActual');
+    const grupoPosicion = document.getElementById('grupoPosicionBomba');
+
+    function actualizarFalla(){
+        if(motivo && esFalla && motivo.value === 'FALLA') {
+            esFalla.checked = true;
+        }
+    }
+
+    function actualizarPosicion(){
+        if(!componente || !grupoPosicion) return;
+        const opt = componente.options[componente.selectedIndex];
+        const tipo = opt ? opt.getAttribute('data-tipo') : '';
+        grupoPosicion.style.display = (tipo === 'BOMBA') ? 'block' : 'none';
+    }
+
+    if(motivo) motivo.addEventListener('change', actualizarFalla);
+    if(componente) componente.addEventListener('change', actualizarPosicion);
+    actualizarFalla();
+    actualizarPosicion();
+})();
+</script>
+{% endblock %}
 {% block content %}
 <div class="main-content">
     {% if messages %}
@@ -40,6 +67,9 @@
             <a href="{% url 'runlife:monitoreo' sistema.id %}" class="btn btn-info btn-main text-white">
                 <i class="bi bi-activity"></i> Monitoreo
             </a>
+            <a href="{% url 'runlife:dashboard_mtbf' %}?campo={{ sistema.campo.id }}" class="btn btn-outline-dark btn-main">
+                <i class="bi bi-graph-up-arrow"></i> MTBF
+            </a>
         </div>
     </div>
 
@@ -63,6 +93,37 @@
         <div class="col-md-3"><div class="kpi-card"><div class="kpi-label">En Garantía</div><div class="kpi-number text-success">{{ en_garantia|length }}</div><div class="kpi-subtitle">Menor o igual a 365 días</div></div></div>
         <div class="col-md-3"><div class="kpi-card"><div class="kpi-label">Fuera de Garantía</div><div class="kpi-number text-danger">{{ fuera_garantia|length }}</div><div class="kpi-subtitle">Mayor a 365 días</div></div></div>
         <div class="col-md-3"><div class="kpi-card"><div class="kpi-label">Alertas Mantenimiento</div><div class="kpi-number text-warning">{{ proximos|length|add:vencidos|length }}</div><div class="kpi-subtitle">Próximos + vencidos</div></div></div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-3">
+            <div class="kpi-card">
+                <div class="kpi-label">MTBF Sistema</div>
+                <div class="kpi-number text-primary">{% if mtbf_resumen.sistema.mtbf %}{{ mtbf_resumen.sistema.mtbf|floatformat:0 }} h{% else %}-{% endif %}</div>
+                <div class="kpi-subtitle">Fallas: {{ mtbf_resumen.sistema.fallas }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="kpi-card">
+                <div class="kpi-label">MTBF Bombas</div>
+                <div class="kpi-number text-info">{% if mtbf_resumen.bombas.mtbf %}{{ mtbf_resumen.bombas.mtbf|floatformat:0 }} h{% else %}-{% endif %}</div>
+                <div class="kpi-subtitle">Lower {{ mtbf_resumen.bomba_lower.fallas }} · Middle {{ mtbf_resumen.bomba_middle.fallas }} · Upper {{ mtbf_resumen.bomba_upper.fallas }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="kpi-card">
+                <div class="kpi-label">MTBF Cámara</div>
+                <div class="kpi-number text-success">{% if mtbf_resumen.camara.mtbf %}{{ mtbf_resumen.camara.mtbf|floatformat:0 }} h{% else %}-{% endif %}</div>
+                <div class="kpi-subtitle">Fallas: {{ mtbf_resumen.camara.fallas }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="kpi-card">
+                <div class="kpi-label">MTBF Motor</div>
+                <div class="kpi-number text-warning">{% if mtbf_resumen.motor.mtbf %}{{ mtbf_resumen.motor.mtbf|floatformat:0 }} h{% else %}-{% endif %}</div>
+                <div class="kpi-subtitle">Fallas: {{ mtbf_resumen.motor.fallas }}</div>
+            </div>
+        </div>
     </div>
 
     <div class="row g-3">
@@ -165,7 +226,13 @@
                             <strong>{{ h.componente_nuevo.descripcion|default:h.componente_nuevo.get_tipo_display }}</strong><br>
                             <small class="text-muted">{{ h.fecha_cambio }} · RunLife anterior: {{ h.runlife_anterior_dias }} días</small>
                             <div class="mt-2"><span class="text-danger">{{ h.componente_anterior.serial }}</span> <i class="bi bi-arrow-right"></i> <span class="text-success">{{ h.componente_nuevo.serial }}</span></div>
-                            {% if h.motivo_cambio %}<div class="mini-muted mt-1">Motivo: {{ h.motivo_cambio }}</div>{% endif %}
+                            {% if h.motivo_tipo %}<div class="mini-muted mt-1">Tipo: {{ h.get_motivo_tipo_display }}</div>{% endif %}
+                            {% if h.es_falla %}
+                                <div class="mt-1"><span class="badge-danger-custom">Falla MTBF</span> <small>{{ h.runlife_anterior_horas }} h</small></div>
+                                {% if h.posicion_bomba %}<div class="mini-muted">Posición bomba: {{ h.get_posicion_bomba_display }}</div>{% endif %}
+                                {% if h.causa_falla %}<div class="mini-muted">Causa: {{ h.causa_falla }}</div>{% endif %}
+                            {% endif %}
+                            {% if h.motivo_cambio %}<div class="mini-muted mt-1">Observación: {{ h.motivo_cambio }}</div>{% endif %}
                             {% if h.creado_por %}<div class="mini-muted">Registrado por: {{ h.creado_por.username }}</div>{% endif %}
                         </div>
                     {% empty %}
@@ -274,9 +341,46 @@
                         <input type="text" name="nuevo_marca" class="form-control" placeholder="Ej: IMPETUS, TOSHIBA...">
                     </div>
 
-                    <div class="col-12">
+                    <div class="col-md-4">
+                        <label class="form-label">Motivo del cambio</label>
+                        <select name="motivo_tipo" id="motivoTipoCambio" class="form-select">
+                            <option value="OTRO">Otro</option>
+                            <option value="FALLA">Falla</option>
+                            <option value="PREVENTIVO">Mantenimiento preventivo</option>
+                            <option value="UPGRADE">Mejora / Upgrade</option>
+                            <option value="ROTACION">Rotación</option>
+                            <option value="GARANTIA">Garantía</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">¿Cuenta como falla MTBF?</label>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" name="es_falla" id="esFallaMtbf">
+                            <label class="form-check-label" for="esFallaMtbf">Sí, alimentar MTBF</label>
+                        </div>
+                        <small class="text-muted">Si el motivo es Falla, se marca automáticamente.</small>
+                    </div>
+
+                    <div class="col-md-4" id="grupoPosicionBomba">
+                        <label class="form-label">Posición bomba</label>
+                        <select name="posicion_bomba" id="posicionBomba" class="form-select">
+                            <option value="">No aplica</option>
+                            <option value="LOWER">Lower</option>
+                            <option value="MIDDLE">Middle</option>
+                            <option value="UPPER">Upper</option>
+                            <option value="GENERAL">General</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Causa / modo de falla</label>
+                        <textarea name="causa_falla" class="form-control" rows="3" placeholder="Ej: rodamiento, sello, vibración, sobretemperatura..."></textarea>
+                    </div>
+
+                    <div class="col-md-6">
                         <label class="form-label">Motivo / observación</label>
-                        <textarea name="motivo_cambio" class="form-control" rows="3" placeholder="Ej: Cambio de rodamiento, falla, mantenimiento mayor..."></textarea>
+                        <textarea name="motivo_cambio" class="form-control" rows="3" placeholder="Detalle del cambio, acciones realizadas, observaciones..."></textarea>
                     </div>
                 </div>
             </div>
@@ -526,4 +630,31 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 
+
+<script>
+(function(){
+    const motivo = document.getElementById('motivoTipoCambio');
+    const esFalla = document.getElementById('esFallaMtbf');
+    const componente = document.getElementById('reemplazoComponenteActual');
+    const grupoPosicion = document.getElementById('grupoPosicionBomba');
+
+    function actualizarFalla(){
+        if(motivo && esFalla && motivo.value === 'FALLA') {
+            esFalla.checked = true;
+        }
+    }
+
+    function actualizarPosicion(){
+        if(!componente || !grupoPosicion) return;
+        const opt = componente.options[componente.selectedIndex];
+        const tipo = opt ? opt.getAttribute('data-tipo') : '';
+        grupoPosicion.style.display = (tipo === 'BOMBA') ? 'block' : 'none';
+    }
+
+    if(motivo) motivo.addEventListener('change', actualizarFalla);
+    if(componente) componente.addEventListener('change', actualizarPosicion);
+    actualizarFalla();
+    actualizarPosicion();
+})();
+</script>
 {% endblock %}

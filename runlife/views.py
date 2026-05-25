@@ -1419,6 +1419,165 @@ def _existe_tipo_unico_activo(sistema, tipo, excluir_id=None):
     return qs.exists()
 
 
+
+def _calcular_mtbf_sistema(sistema):
+    fallas = ComponentChangeLog.objects.filter(
+        sistema=sistema,
+        es_falla=True,
+    )
+
+    def calc(tipo=None, posicion_bomba=None):
+        qs = fallas
+        if tipo:
+            qs = qs.filter(tipo=tipo)
+        if posicion_bomba:
+            qs = qs.filter(posicion_bomba=posicion_bomba)
+
+        total = qs.count()
+        horas = sum((f.runlife_anterior_dias or 0) * 24 for f in qs)
+
+        return {
+            "fallas": total,
+            "horas": horas,
+            "mtbf": round(horas / total, 0) if total else None,
+        }
+
+    return {
+        "sistema": calc(),
+        "motor": calc("MOTOR"),
+        "camara": calc("CAMARA"),
+        "bombas": calc("BOMBA"),
+        "bomba_lower": calc("BOMBA", "LOWER"),
+        "bomba_middle": calc("BOMBA", "MIDDLE"),
+        "bomba_upper": calc("BOMBA", "UPPER"),
+        "bomba_general": calc("BOMBA", "GENERAL"),
+    }
+
+
+def _estado_mtbf(mtbf_horas):
+    if mtbf_horas is None:
+        return "SIN_DATOS"
+    if mtbf_horas < 2000:
+        return "CRITICO"
+    if mtbf_horas < 4000:
+        return "ALERTA"
+    return "OK"
+
+
+@login_required
+def dashboard_mtbf(request):
+    campos = _campos_permitidos(request.user).select_related("cliente")
+    clientes = _clientes_permitidos(request.user)
+
+    cliente_id = request.GET.get("cliente", "").strip()
+    campo_id = request.GET.get("campo", "").strip()
+    tipo = request.GET.get("tipo", "").strip()
+    q = request.GET.get("q", "").strip()
+
+    sistemas = InjectionSystem.objects.select_related(
+        "campo",
+        "campo__cliente",
+    ).filter(
+        campo__in=campos,
+        activo=True,
+    )
+
+    if cliente_id:
+        sistemas = sistemas.filter(campo__cliente_id=cliente_id)
+    if campo_id:
+        sistemas = sistemas.filter(campo_id=campo_id)
+    if q:
+        sistemas = sistemas.filter(
+            Q(nombre__icontains=q) |
+            Q(pozo__icontains=q) |
+            Q(campo__nombre__icontains=q) |
+            Q(campo__cliente__nombre__icontains=q)
+        )
+
+    sistemas = sistemas.order_by("campo__cliente__nombre", "campo__nombre", "nombre")
+
+    filas = []
+    total_fallas = 0
+    total_horas = 0
+    sistemas_criticos = 0
+    sistemas_alerta = 0
+
+    for sistema in sistemas:
+        resumen = _calcular_mtbf_sistema(sistema)
+
+        if tipo == "MOTOR":
+            principal = resumen["motor"]
+        elif tipo == "CAMARA":
+            principal = resumen["camara"]
+        elif tipo == "BOMBA":
+            principal = resumen["bombas"]
+        else:
+            principal = resumen["sistema"]
+
+        estado = _estado_mtbf(principal["mtbf"])
+
+        if estado == "CRITICO":
+            sistemas_criticos += 1
+        elif estado == "ALERTA":
+            sistemas_alerta += 1
+
+        total_fallas += principal["fallas"]
+        total_horas += principal["horas"]
+
+        filas.append({
+            "sistema": sistema,
+            "resumen": resumen,
+            "principal": principal,
+            "estado": estado,
+        })
+
+    mtbf_global = round(total_horas / total_fallas, 0) if total_fallas else None
+
+    fallas_recientes = ComponentChangeLog.objects.select_related(
+        "sistema",
+        "sistema__campo",
+        "sistema__campo__cliente",
+        "componente_anterior",
+        "componente_nuevo",
+        "creado_por",
+    ).filter(
+        sistema__campo__in=campos,
+        es_falla=True,
+    )
+
+    if cliente_id:
+        fallas_recientes = fallas_recientes.filter(sistema__campo__cliente_id=cliente_id)
+    if campo_id:
+        fallas_recientes = fallas_recientes.filter(sistema__campo_id=campo_id)
+    if tipo:
+        fallas_recientes = fallas_recientes.filter(tipo=tipo)
+
+    fallas_recientes = fallas_recientes.order_by("-fecha_cambio", "-creado_en")[:20]
+
+    campos_filtro = campos.order_by("cliente__nombre", "nombre")
+
+    return render(request, "runlife/dashboard_mtbf.html", _runlife_context(
+        request,
+        sidebar_subtitle="MTBF",
+        filas=filas,
+        clientes=clientes,
+        campos_filtro=campos_filtro,
+        tipos_componentes=SystemComponent.TIPO_COMPONENTE,
+        filtros={
+            "cliente_id": cliente_id,
+            "campo_id": campo_id,
+            "tipo": tipo,
+            "q": q,
+        },
+        total_sistemas=len(filas),
+        total_fallas=total_fallas,
+        mtbf_global=mtbf_global,
+        sistemas_criticos=sistemas_criticos,
+        sistemas_alerta=sistemas_alerta,
+        fallas_recientes=fallas_recientes,
+    ))
+
+
 @login_required
 def sistema_detail_runlife(request, sistema_id):
     user = request.user
@@ -1610,6 +1769,16 @@ def sistema_detail_runlife(request, sistema_id):
             nuevo_modelo = request.POST.get("nuevo_modelo", "").strip()
             nuevo_parte = request.POST.get("nuevo_parte", "").strip()
             motivo_cambio = request.POST.get("motivo_cambio", "").strip()
+            motivo_tipo = request.POST.get("motivo_tipo", "OTRO").strip() or "OTRO"
+            es_falla = request.POST.get("es_falla") == "on" or motivo_tipo == "FALLA"
+            posicion_bomba = request.POST.get("posicion_bomba", "").strip() or None
+            causa_falla = request.POST.get("causa_falla", "").strip()
+
+            if comp.tipo != "BOMBA":
+                posicion_bomba = None
+
+            if motivo_tipo == "FALLA":
+                es_falla = True
 
             runlife_anterior = comp.runlife_dias
 
@@ -1695,6 +1864,14 @@ def sistema_detail_runlife(request, sistema_id):
 
                 if _model_has_field(ComponentChangeLog, "motivo_cambio"):
                     log_data["motivo_cambio"] = motivo_cambio
+                if _model_has_field(ComponentChangeLog, "motivo_tipo"):
+                    log_data["motivo_tipo"] = motivo_tipo
+                if _model_has_field(ComponentChangeLog, "es_falla"):
+                    log_data["es_falla"] = es_falla
+                if _model_has_field(ComponentChangeLog, "posicion_bomba"):
+                    log_data["posicion_bomba"] = posicion_bomba
+                if _model_has_field(ComponentChangeLog, "causa_falla"):
+                    log_data["causa_falla"] = causa_falla
 
                 ComponentChangeLog.objects.create(**log_data)
 
@@ -1759,6 +1936,7 @@ def sistema_detail_runlife(request, sistema_id):
         "total_alertas": len(proximos) + len(vencidos),
         "sidebar_subtitle": sistema.campo.cliente.nombre,
         "bodega_items": bodega_items,
+        "mtbf_resumen": _calcular_mtbf_sistema(sistema),
          
     }
 

@@ -2,12 +2,57 @@
 {% block title %}RunLife - Historial{% endblock %}
 {% block content %}
 <div class="main-content">
-    <div class="top-panel"><div class="title-main mb-1">Historial de Cambios</div><div class="subtitle">Trazabilidad de reemplazos realizados en sistemas.</div></div>
+    <div class="top-panel">
+        <div class="title-main mb-1">Historial de Cambios</div>
+        <div class="subtitle">Trazabilidad de reemplazos realizados en sistemas y eventos que alimentan MTBF.</div>
+    </div>
+
     <div class="card-box card-padding">
-        <div class="table-responsive"><table class="table align-middle">
-            <thead><tr><th>Fecha</th><th>Cliente</th><th>Campo</th><th>Sistema</th><th>Componente</th><th>Anterior</th><th>Nuevo</th><th>RunLife anterior</th><th>Usuario</th></tr></thead>
-            <tbody>{% for h in cambios %}<tr><td>{{ h.fecha_cambio }}</td><td>{{ h.sistema.campo.cliente.nombre }}</td><td>{{ h.sistema.campo.nombre }}</td><td>{{ h.sistema.nombre }}</td><td><strong>{{ h.componente_nuevo.descripcion|default:h.componente_nuevo.get_tipo_display }}</strong></td><td class="text-danger">{{ h.componente_anterior.serial }}</td><td class="text-success">{{ h.componente_nuevo.serial }}</td><td>{{ h.runlife_anterior_dias }} días</td><td>{{ h.creado_por.username|default:"-" }}</td></tr>{% empty %}<tr><td colspan="9" class="text-center text-muted">No hay cambios registrados.</td></tr>{% endfor %}</tbody>
-        </table></div>
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        <th>Campo</th>
+                        <th>Sistema</th>
+                        <th>Componente</th>
+                        <th>Anterior</th>
+                        <th>Nuevo</th>
+                        <th>RunLife anterior</th>
+                        <th>MTBF</th>
+                        <th>Usuario</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for h in cambios %}
+                        <tr>
+                            <td>{{ h.fecha_cambio }}</td>
+                            <td>{{ h.sistema.campo.cliente.nombre }}</td>
+                            <td>{{ h.sistema.campo.nombre }}</td>
+                            <td>{{ h.sistema.nombre }}</td>
+                            <td><strong>{{ h.componente_nuevo.descripcion|default:h.componente_nuevo.get_tipo_display }}</strong></td>
+                            <td class="text-danger">{{ h.componente_anterior.serial }}</td>
+                            <td class="text-success">{{ h.componente_nuevo.serial }}</td>
+                            <td>{{ h.runlife_anterior_dias }} días<br><small class="text-muted">{{ h.runlife_anterior_horas }} h</small></td>
+                            <td>
+                                {% if h.es_falla %}
+                                    <span class="badge-danger-custom">Falla</span>
+                                    <br><small>{{ h.get_motivo_tipo_display }}</small>
+                                    {% if h.posicion_bomba %}<br><small>Bomba {{ h.get_posicion_bomba_display }}</small>{% endif %}
+                                {% else %}
+                                    <span class="badge-ok">No falla</span>
+                                    <br><small>{{ h.get_motivo_tipo_display|default:"Otro" }}</small>
+                                {% endif %}
+                            </td>
+                            <td>{{ h.creado_por.username|default:"-" }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="10" class="text-center text-muted">No hay cambios registrados.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 {% endblock %}

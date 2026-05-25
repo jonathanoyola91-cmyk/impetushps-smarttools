@@ -6,6 +6,7 @@ app_name = "runlife"
 urlpatterns = [
     path("", views.dashboard_runlife, name="dashboard"),
     path("garantias/", views.dashboard_garantias, name="dashboard_garantias"),
+    path("mtbf/", views.dashboard_mtbf, name="dashboard_mtbf"),
     path("campo/<int:campo_id>/", views.campo_detail, name="campo_detail"),
 
     path("sistema/nuevo/", views.crear_sistema_runlife, name="crear_sistema"),

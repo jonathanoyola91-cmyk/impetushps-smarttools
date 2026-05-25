@@ -1,0 +1,134 @@
+{% extends "runlife/base_runlife.html" %}
+{% block title %}RunLife - Dashboard MTBF{% endblock %}
+{% block content %}
+<div class="main-content">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+            <div class="title-main mb-1">Dashboard MTBF</div>
+            <div class="text-muted">Mean Time Between Failures calculado desde reemplazos marcados como falla.</div>
+        </div>
+        <a href="{% url 'runlife:historial' %}" class="btn btn-outline-dark btn-main">
+            <i class="bi bi-clock-history"></i> Ver historial
+        </a>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-3"><div class="kpi-card"><div class="kpi-label">MTBF Global</div><div class="kpi-number text-primary">{% if mtbf_global %}{{ mtbf_global|floatformat:0 }} h{% else %}-{% endif %}</div><div class="kpi-subtitle">Sobre {{ total_fallas }} falla(s)</div></div></div>
+        <div class="col-md-3"><div class="kpi-card"><div class="kpi-label">Sistemas evaluados</div><div class="kpi-number text-info">{{ total_sistemas }}</div><div class="kpi-subtitle">Según filtros aplicados</div></div></div>
+        <div class="col-md-3"><div class="kpi-card"><div class="kpi-label">Críticos</div><div class="kpi-number text-danger">{{ sistemas_criticos }}</div><div class="kpi-subtitle">MTBF menor a 2.000 h</div></div></div>
+        <div class="col-md-3"><div class="kpi-card"><div class="kpi-label">En alerta</div><div class="kpi-number text-warning">{{ sistemas_alerta }}</div><div class="kpi-subtitle">MTBF entre 2.000 y 4.000 h</div></div></div>
+    </div>
+
+    <div class="card-box card-padding mb-3">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Cliente</label>
+                <select name="cliente" class="form-select">
+                    <option value="">Todos</option>
+                    {% for c in clientes %}
+                        <option value="{{ c.id }}" {% if filtros.cliente_id == c.id|stringformat:'s' %}selected{% endif %}>{{ c.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Campo</label>
+                <select name="campo" class="form-select">
+                    <option value="">Todos</option>
+                    {% for c in campos_filtro %}
+                        <option value="{{ c.id }}" {% if filtros.campo_id == c.id|stringformat:'s' %}selected{% endif %}>{{ c.cliente.nombre }} / {{ c.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Tipo</label>
+                <select name="tipo" class="form-select">
+                    <option value="">Sistema completo</option>
+                    <option value="BOMBA" {% if filtros.tipo == 'BOMBA' %}selected{% endif %}>Bombas</option>
+                    <option value="CAMARA" {% if filtros.tipo == 'CAMARA' %}selected{% endif %}>Cámara</option>
+                    <option value="MOTOR" {% if filtros.tipo == 'MOTOR' %}selected{% endif %}>Motor</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Buscar</label>
+                <input type="text" name="q" value="{{ filtros.q }}" class="form-control" placeholder="Sistema, pozo, campo...">
+            </div>
+            <div class="col-md-1 d-grid">
+                <button class="btn btn-primary"><i class="bi bi-search"></i></button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card-box card-padding mb-3">
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Cliente / Campo</th>
+                        <th>Sistema</th>
+                        <th>MTBF Sistema</th>
+                        <th>Bombas</th>
+                        <th>Lower</th>
+                        <th>Middle</th>
+                        <th>Upper</th>
+                        <th>Cámara</th>
+                        <th>Motor</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fila in filas %}
+                        <tr>
+                            <td>{{ fila.sistema.campo.cliente.nombre }}<br><small class="text-muted">{{ fila.sistema.campo.nombre }}</small></td>
+                            <td><a href="{% url 'runlife:sistema_detail' fila.sistema.id %}" class="fw-bold">{{ fila.sistema.nombre }}</a><br><small class="text-muted">Pozo: {{ fila.sistema.pozo|default:"-" }}</small></td>
+                            <td>{% if fila.resumen.sistema.mtbf %}<strong>{{ fila.resumen.sistema.mtbf|floatformat:0 }} h</strong>{% else %}-{% endif %}<br><small>{{ fila.resumen.sistema.fallas }} falla(s)</small></td>
+                            <td>{% if fila.resumen.bombas.mtbf %}{{ fila.resumen.bombas.mtbf|floatformat:0 }} h{% else %}-{% endif %}<br><small>{{ fila.resumen.bombas.fallas }} falla(s)</small></td>
+                            <td>{% if fila.resumen.bomba_lower.mtbf %}{{ fila.resumen.bomba_lower.mtbf|floatformat:0 }} h{% else %}-{% endif %}<br><small>{{ fila.resumen.bomba_lower.fallas }}</small></td>
+                            <td>{% if fila.resumen.bomba_middle.mtbf %}{{ fila.resumen.bomba_middle.mtbf|floatformat:0 }} h{% else %}-{% endif %}<br><small>{{ fila.resumen.bomba_middle.fallas }}</small></td>
+                            <td>{% if fila.resumen.bomba_upper.mtbf %}{{ fila.resumen.bomba_upper.mtbf|floatformat:0 }} h{% else %}-{% endif %}<br><small>{{ fila.resumen.bomba_upper.fallas }}</small></td>
+                            <td>{% if fila.resumen.camara.mtbf %}{{ fila.resumen.camara.mtbf|floatformat:0 }} h{% else %}-{% endif %}<br><small>{{ fila.resumen.camara.fallas }} falla(s)</small></td>
+                            <td>{% if fila.resumen.motor.mtbf %}{{ fila.resumen.motor.mtbf|floatformat:0 }} h{% else %}-{% endif %}<br><small>{{ fila.resumen.motor.fallas }} falla(s)</small></td>
+                            <td>
+                                {% if fila.estado == "CRITICO" %}
+                                    <span class="badge-danger-custom">Crítico</span>
+                                {% elif fila.estado == "ALERTA" %}
+                                    <span class="badge-warning">Alerta</span>
+                                {% elif fila.estado == "OK" %}
+                                    <span class="badge-ok">OK</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Sin fallas</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="10" class="text-center text-muted py-4">No hay sistemas para los filtros seleccionados.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card-box card-padding">
+        <h5 class="mb-3">Fallas recientes</h5>
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead><tr><th>Fecha</th><th>Sistema</th><th>Tipo</th><th>Componente anterior</th><th>RunLife</th><th>Causa</th><th>Usuario</th></tr></thead>
+                <tbody>
+                    {% for f in fallas_recientes %}
+                        <tr>
+                            <td>{{ f.fecha_cambio }}</td>
+                            <td>{{ f.sistema.nombre }}<br><small>{{ f.sistema.campo.nombre }}</small></td>
+                            <td>{{ f.get_tipo_display }}{% if f.posicion_bomba %}<br><small>Bomba {{ f.get_posicion_bomba_display }}</small>{% endif %}</td>
+                            <td>{{ f.componente_anterior.serial|default:"-" }}</td>
+                            <td>{{ f.runlife_anterior_dias }} días<br><small>{{ f.runlife_anterior_horas }} h</small></td>
+                            <td>{{ f.causa_falla|default:f.motivo_cambio|default:"-" }}</td>
+                            <td>{{ f.creado_por.username|default:"-" }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="7" class="text-center text-muted">No hay fallas marcadas todavía.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

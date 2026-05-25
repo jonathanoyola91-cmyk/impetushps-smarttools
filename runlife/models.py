@@ -89,6 +89,18 @@ class OperationalMonitoring(models.Model):
 
     creado_en = models.DateTimeField(auto_now_add=True)
 
+    @property
+    def runlife_anterior_horas(self):
+        return (self.runlife_anterior_dias or 0) * 24
+
+    @property
+    def etiqueta_mtbf(self):
+        if not self.es_falla:
+            return "No aplica"
+        if self.tipo == "BOMBA" and self.posicion_bomba:
+            return f"Falla {self.get_tipo_display()} {self.get_posicion_bomba_display()}"
+        return f"Falla {self.get_tipo_display()}"
+
     class Meta:
         ordering = ["-fecha", "-hora"]
 
@@ -480,6 +492,18 @@ class InjectionSystem(models.Model):
     activo = models.BooleanField(default=True)
     creado_en = models.DateTimeField(auto_now_add=True)
 
+    @property
+    def runlife_anterior_horas(self):
+        return (self.runlife_anterior_dias or 0) * 24
+
+    @property
+    def etiqueta_mtbf(self):
+        if not self.es_falla:
+            return "No aplica"
+        if self.tipo == "BOMBA" and self.posicion_bomba:
+            return f"Falla {self.get_tipo_display()} {self.get_posicion_bomba_display()}"
+        return f"Falla {self.get_tipo_display()}"
+
     class Meta:
         ordering = ["campo__cliente__nombre", "campo__nombre", "nombre"]
         verbose_name = "Sistema de Inyección"
@@ -487,6 +511,37 @@ class InjectionSystem(models.Model):
 
     def __str__(self):
         return f"{self.nombre} - {self.campo.nombre} - {self.campo.cliente.nombre}"
+
+    def fallas_mtbf(self, tipo=None, posicion_bomba=None):
+        """Retorna los cambios marcados como falla para cálculo MTBF."""
+        qs = self.historial_cambios.filter(es_falla=True)
+
+        if tipo:
+            qs = qs.filter(tipo=tipo)
+
+        if posicion_bomba:
+            qs = qs.filter(posicion_bomba=posicion_bomba)
+
+        return qs
+
+    def mtbf_horas(self, tipo=None, posicion_bomba=None):
+        """
+        MTBF = horas acumuladas hasta falla / número de fallas.
+
+        Se calcula desde ComponentChangeLog, porque el evento real de falla nace
+        cuando se reemplaza un componente y se marca el cambio como falla.
+        """
+        fallas = self.fallas_mtbf(tipo=tipo, posicion_bomba=posicion_bomba)
+        total_fallas = fallas.count()
+
+        if total_fallas == 0:
+            return None
+
+        total_horas = sum((f.runlife_anterior_dias or 0) * 24 for f in fallas)
+        return round(total_horas / total_fallas, 0)
+
+    def total_fallas_mtbf(self, tipo=None, posicion_bomba=None):
+        return self.fallas_mtbf(tipo=tipo, posicion_bomba=posicion_bomba).count()
 
 
 class SystemComponent(models.Model):
@@ -912,6 +967,48 @@ class ComponentChangeLog(models.Model):
 
     motivo_cambio = models.TextField(blank=True, null=True)
 
+    MOTIVO_CAMBIO = [
+        ("FALLA", "Falla"),
+        ("PREVENTIVO", "Mantenimiento preventivo"),
+        ("UPGRADE", "Mejora / Upgrade"),
+        ("ROTACION", "Rotación"),
+        ("GARANTIA", "Garantía"),
+        ("OTRO", "Otro"),
+    ]
+
+    POSICION_BOMBA = [
+        ("LOWER", "Lower"),
+        ("MIDDLE", "Middle"),
+        ("UPPER", "Upper"),
+        ("GENERAL", "General"),
+    ]
+
+    motivo_tipo = models.CharField(
+        max_length=20,
+        choices=MOTIVO_CAMBIO,
+        default="OTRO",
+        help_text="Clasificación del cambio para análisis de mantenimiento y MTBF."
+    )
+
+    es_falla = models.BooleanField(
+        default=False,
+        help_text="Marcar cuando el reemplazo fue consecuencia de una falla. Alimenta MTBF."
+    )
+
+    posicion_bomba = models.CharField(
+        max_length=20,
+        choices=POSICION_BOMBA,
+        blank=True,
+        null=True,
+        help_text="Aplica cuando el componente reemplazado es una bomba: lower, middle, upper o general."
+    )
+
+    causa_falla = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Causa o modo de falla identificado."
+    )
+
     creado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -920,6 +1017,18 @@ class ComponentChangeLog(models.Model):
     )
 
     creado_en = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def runlife_anterior_horas(self):
+        return (self.runlife_anterior_dias or 0) * 24
+
+    @property
+    def etiqueta_mtbf(self):
+        if not self.es_falla:
+            return "No aplica"
+        if self.tipo == "BOMBA" and self.posicion_bomba:
+            return f"Falla {self.get_tipo_display()} {self.get_posicion_bomba_display()}"
+        return f"Falla {self.get_tipo_display()}"
 
     class Meta:
         ordering = ["-fecha_cambio", "-creado_en"]
